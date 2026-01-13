@@ -1,0 +1,234 @@
+:root {
+    --primary: #00f3ff;
+    --danger: #ff0055;
+    --bg: #050510;
+}
+
+body {
+    background-color: var(--bg);
+    color: white;
+    font-family: 'Orbitron', sans-serif;
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center; /* Centra tutto verticalmente */
+    overflow: hidden;
+    touch-action: none;
+    user-select: none;
+}
+
+/* CONTENITORE PRINCIPALE */
+#main-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 1200px; /* Limite per schermi giganti */
+}
+
+/* --- RIGA SUPERIORE (HEADER) --- */
+#header-row {
+    display: flex;
+    align-items: flex-end; /* Allinea il testo alla base del logo */
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 10px;
+    gap: 15px; /* Spazio tra scritte e logo */
+}
+
+/* Stile Logo */
+#logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#game-logo {
+    max-height: 80px; /* Altezza contenuta */
+    width: auto;
+    max-width: 60vw; /* Non occupare mai tutto lo schermo su mobile */
+    /* Nessun filtro glow, immagine pulita */
+    display: block;
+}
+
+/* Stile HUD Mini (Level e Lives) */
+.hud-group {
+    text-align: center;
+    min-width: 50px;
+    padding-bottom: 5px; /* Allineamento visivo col logo */
+}
+.hud-group.left { text-align: right; }
+.hud-group.right { text-align: left; }
+
+.label-mini { font-size: 10px; color: #666; letter-spacing: 1px; margin-bottom: 2px;}
+.value-mini { font-size: 18px; color: #fff; font-weight: bold; }
+
+
+/* --- RIGA CENTRALE (GIOCO E LATI) --- */
+#game-row {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+}
+
+/* Colonne Laterali (Simmetria) */
+.side-col {
+    width: 80px; /* Larghezza FISSA per garantire che il gioco sia centrato */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0; /* Non si rimpiccioliscono */
+}
+
+/* Area Percentuale (Sinistra) */
+.hud-vertical {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    /* Ruotiamo il testo "AREA" per stile? No, teniamolo semplice e leggibile */
+}
+.value-big {
+    font-size: 24px;
+    color: var(--primary);
+    text-shadow: 0 0 10px rgba(0, 243, 255, 0.4);
+}
+
+/* Bottone Musica (Destra) */
+.side-btn {
+    background: transparent;
+    border: 2px solid #333;
+    color: #666;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    font-size: 22px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+.side-btn:hover, .side-btn:not(.off) {
+    border-color: var(--primary);
+    color: var(--primary);
+    box-shadow: 0 0 10px rgba(0,243,255,0.2);
+}
+.side-btn.off {
+    text-decoration: none;
+    opacity: 0.5;
+}
+
+/* --- QUADRATO DI GIOCO --- */
+#game-wrapper {
+    position: relative;
+    /* Adattamento Responsive */
+    width: 80vmin; 
+    height: 80vmin;
+    
+    /* Limiti per non sbattere contro header o lati */
+    max-width: 800px;
+    max-height: 800px;
+    
+    border: 2px solid var(--primary); /* Bordo leggermente più fine */
+    box-shadow: 0 0 20px rgba(0, 243, 255, 0.15); /* Ombra meno invasiva */
+    background: #000;
+}
+
+canvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    image-rendering: auto; 
+    display: block;
+}
+
+#imageCanvas { z-index: 1; }
+#gridCanvas { z-index: 2; }
+#entityCanvas { z-index: 3; }
+
+/* Pulsante Next Level */
+#next-level-container {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+    z-index: 100;
+}
+#next-level-btn {
+    background: var(--primary);
+    color: var(--bg);
+    border: 2px solid white;
+    padding: 15px 30px;
+    font-size: 20px;
+    font-family: 'Orbitron', sans-serif;
+    font-weight: bold;
+    border-radius: 50px;
+    cursor: pointer;
+    box-shadow: 0 0 20px var(--primary);
+    animation: pulseBtn 1s infinite alternate;
+}
+@keyframes pulseBtn { from {transform: scale(1);} to {transform: scale(1.1);} }
+
+
+/* --- MEDIA QUERY (Mobile Portrait) --- */
+@media (max-width: 768px) {
+    /* Su cellulare verticale, spostiamo Area e Musica SOTTO il gioco */
+    
+    #header-row {
+        gap: 10px;
+    }
+    
+    #game-logo {
+        max-height: 50px; /* Logo più piccolo su mobile */
+    }
+
+    #game-row {
+        flex-direction: column; /* Impila verticale */
+    }
+
+    #game-wrapper {
+        width: 90vw;
+        height: 90vw;
+        margin: 10px 0;
+    }
+
+    /* Le colonne laterali diventano una riga sotto il gioco */
+    .side-col {
+        width: 100%;
+        flex-direction: row;
+        height: auto;
+        padding: 5px 0;
+    }
+
+    /* Nascondiamo le colonne laterali originali e usiamo CSS grid o flex order per riposizionare? 
+       Metodo semplice: usiamo absolute positioning per mobile o flex order */
+    
+    .side-col.left-col { order: 2; width: 50%; float: left; } /* Area sotto a sinistra */
+    .side-col.right-col { order: 3; width: 50%; float: right; } /* Musica sotto a destra */
+    
+    /* Contenitore per metterli sulla stessa riga sotto il gioco */
+    #game-row {
+        flex-wrap: wrap;
+    }
+    
+    .value-big { font-size: 20px; }
+}
+
+/* --- MEDIA QUERY (Mobile Landscape / Schermi bassi) --- */
+@media (max-height: 600px) {
+    #game-logo { max-height: 40px; }
+    .label-mini { font-size: 8px; }
+    .value-mini { font-size: 14px; }
+    
+    #game-wrapper {
+        width: 70vh;
+        height: 70vh;
+    }
+}
