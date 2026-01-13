@@ -1,4 +1,4 @@
-/* script.js - Swipe, Keyboard, HD Fix, Music & Gameover Sound & Soccer Ball */
+/* script.js - New Logic: 1000pts per Level + Time Bonus */
 
 // --- CONFIGURAZIONE ---
 const W = 160; 
@@ -6,6 +6,11 @@ const H = 160;
 const PLAYER_SPEED_CELLS = 1; 
 const WIN_PERCENT = 75;
 const START_LIVES = 3;
+
+// Logica Punti
+const POINTS_PER_LEVEL = 1000; // Punti fissi al completamento livello
+const MAX_TIME_BONUS = 500;    // Bonus massimo per velocità
+const POINTS_PER_FILL = 10;    // Punti minimi per ogni area chiusa (feedback visivo)
 
 // Costanti Celle
 const CELL_UNCLAIMED = 0;
@@ -36,6 +41,7 @@ let level = 1;
 let score = 0;
 let isPlaying = false;
 let scaleX = 1, scaleY = 1;
+let levelStartTime = 0; // Per calcolare il tempo impiegato
 
 let player = { x: Math.floor(W/2), y: H-1, drawing: false, dir: {x:0,y:0} };
 let fuse = { active: false, delay: 300, timer: 0 };
@@ -122,8 +128,14 @@ function initGrid(){
 
 function initGame(lvl, resetLives = true){
     level = lvl;
-    if (resetLives) lives = START_LIVES;
-    score = 0;
+    if (resetLives) {
+        lives = START_LIVES;
+        score = 0;
+    }
+    
+    // Inizia il conteggio del tempo per questo livello
+    levelStartTime = Date.now();
+    
     isPlaying = true;
     nextLevelContainer.style.display = 'none'; 
     gameWrapper.style.cursor = 'none';
@@ -194,19 +206,13 @@ function draw() {
     }
 
     if (isPlaying) {
-        // Disegno il NEMICO (Qix/Ragno)
         entCtx.font = `${Math.min(scaleX, scaleY) * 5}px serif`; 
         entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
         entCtx.fillText('🕷️', (qix.x+0.5)*scaleX, (qix.y+0.5)*scaleY);
 
-        // --- MODIFICA: DISEGNO GIOCATORE (PALLA DA CALCIO) ---
-        // Impostiamo il font un po' più grande della singola cella per visibilità (es. 3.5 volte)
         entCtx.font = `${Math.min(scaleX, scaleY) * 3.5}px sans-serif`; 
         entCtx.textAlign = 'center'; 
         entCtx.textBaseline = 'middle';
-        
-        // Disegniamo la palla centrata sulle coordinate del player
-        // (player.x + 0.5) serve a metterla esattamente al centro della casella
         entCtx.fillText('⚽', (player.x + 0.5) * scaleX, (player.y + 0.5) * scaleY);
     }
 }
@@ -238,7 +244,13 @@ function closeStixAndFill(){
         if(grid[i]===CELL_STIX){ grid[i] = CELL_CLAIMED; }
     }
     stixList = []; fuse.active = false; fuse.timer = 0;
-    if(filled > 0) playSound('fill');
+    
+    if(filled > 0) {
+        playSound('fill');
+        // Punti minimi per dare feedback immediato
+        score += POINTS_PER_FILL; 
+    }
+    
     updateUI();
     return filled;
 }
@@ -262,10 +274,10 @@ function loseLife(){
         gameoverSound.play().catch(e => console.log(e));
 
         Swal.fire({
-            title:'GAME OVER', 
-            text:`Score: ${score}`, 
-            icon:'error', 
-            background:'#111', color:'#fff', 
+	    title: 'GAME OVER', 
+            html: `LIVELLO RAGGIUNTO: ${level}<br>PUNTEGGIO TOTALE: ${score}`, 
+            icon: 'error', 
+            background: '#111', color: '#fff', 
             confirmButtonText: 'Riprova'
         }).then(()=>{ 
             gameoverSound.pause();
@@ -304,6 +316,21 @@ function moveQix(){
 function winLevel() {
     isPlaying = false;
     playSound('win');
+    
+    // --- CALCOLO PUNTEGGIO FINALE LIVELLO ---
+    // 1. Punteggio Base per aver finito il livello
+    let levelScore = POINTS_PER_LEVEL;
+
+    // 2. Calcolo Tempo Impiegato (in secondi)
+    let timeTakenSeconds = (Date.now() - levelStartTime) / 1000;
+    
+    // 3. Calcolo Bonus (diminuisce di 5 punti per ogni secondo passato)
+    // Esempio: se finisci in 20 secondi -> 500 - (20*5) = 400 punti bonus
+    // Se finisci in 100 secondi o più -> 0 punti bonus
+    let timeBonus = Math.max(0, MAX_TIME_BONUS - Math.floor(timeTakenSeconds * 5));
+    
+    score += (levelScore + timeBonus);
+
     grid.fill(CELL_CLAIMED); 
     draw(); 
     gameWrapper.style.cursor = 'default'; 
@@ -329,7 +356,9 @@ function tickPlayer(){
     if(player.drawing && nextType===CELL_CLAIMED){
         player.x = nx; player.y = ny; 
         const filled = closeStixAndFill(); 
-        score += filled; player.drawing = false; updateUI();
+        // Punti aggiunti in closeStixAndFill
+        player.drawing = false; 
+        updateUI();
         if(getClaimPercent() >= WIN_PERCENT){ winLevel(); }
         return;
     }
@@ -373,19 +402,36 @@ function setPlayerDirFromKeys(){
     player.dir = found;
 }
 
-// SWIPE
+// --- SWIPE FIX (MOBILE) ---
 let touchStartX = 0; let touchStartY = 0;
+
+// Funzione helper per verificare se stiamo toccando il bottone
+function isButton(e) {
+    return e.target.id === 'next-level-btn' || e.target.closest('#next-level-btn');
+}
+
 gameWrapper.addEventListener('touchstart', e => {
+    // IMPORTANTE: Se è il bottone, usciamo subito e lasciamo il comportamento di default (click)
+    if (isButton(e)) return; 
+
     tryPlayMusic();
     if (audioCtx.state === 'suspended') { audioCtx.resume(); }
     touchStartX = e.changedTouches[0].screenX;
     touchStartY = e.changedTouches[0].screenY;
+    
+    // Altrimenti preveniamo lo scroll/zoom
     e.preventDefault(); 
 }, {passive: false});
 
-gameWrapper.addEventListener('touchmove', e => { e.preventDefault(); }, {passive: false});
+gameWrapper.addEventListener('touchmove', e => { 
+    if (isButton(e)) return;
+    e.preventDefault(); 
+}, {passive: false});
 
 gameWrapper.addEventListener('touchend', e => {
+    // IMPORTANTE: Anche qui, se è il bottone, NON blocchiamo l'evento
+    if (isButton(e)) return;
+
     e.preventDefault();
     let touchEndX = e.changedTouches[0].screenX;
     let touchEndY = e.changedTouches[0].screenY;

@@ -92,7 +92,6 @@ body {
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    /* Ruotiamo il testo "AREA" per stile? No, teniamolo semplice e leggibile */
 }
 .value-big {
     font-size: 24px;
@@ -177,58 +176,77 @@ canvas {
 @keyframes pulseBtn { from {transform: scale(1);} to {transform: scale(1.1);} }
 
 
-/* --- MEDIA QUERY (Mobile Portrait) --- */
+/* --- MEDIA QUERY (Mobile / Tablet) --- */
 @media (max-width: 768px) {
-    /* Su cellulare verticale, spostiamo Area e Musica SOTTO il gioco */
     
     #header-row {
         gap: 10px;
+        padding: 0 10px;
+        box-sizing: border-box;
     }
     
     #game-logo {
-        max-height: 50px; /* Logo più piccolo su mobile */
+        max-height: 50px; 
     }
 
+    /* Riorganizzazione Layout Centrale */
     #game-row {
-        flex-direction: column; /* Impila verticale */
+        flex-wrap: wrap; /* Permette agli elementi di andare a capo */
+        width: 100%;
+        justify-content: space-between; /* Spinge i laterali agli estremi */
+        padding: 0 15px; /* Margine laterale di sicurezza */
+        box-sizing: border-box;
     }
 
+    /* Il gioco va per primo e occupa tutta la riga */
     #game-wrapper {
+        order: 1;
         width: 90vw;
         height: 90vw;
-        margin: 10px 0;
+        margin: 10px auto 20px auto; /* Un po' di spazio sotto */
     }
 
-    /* Le colonne laterali diventano una riga sotto il gioco */
+    /* Le colonne laterali vanno sotto (ordine 2 e 3) */
     .side-col {
-        width: 100%;
-        flex-direction: row;
+        width: 45%; /* Occupano quasi metà spazio ciascuno */
         height: auto;
-        padding: 5px 0;
+        flex-direction: column;
+        margin-bottom: 20px;
     }
 
-    /* Nascondiamo le colonne laterali originali e usiamo CSS grid o flex order per riposizionare? 
-       Metodo semplice: usiamo absolute positioning per mobile o flex order */
-    
-    .side-col.left-col { order: 2; width: 50%; float: left; } /* Area sotto a sinistra */
-    .side-col.right-col { order: 3; width: 50%; float: right; } /* Musica sotto a destra */
-    
-    /* Contenitore per metterli sulla stessa riga sotto il gioco */
-    #game-row {
-        flex-wrap: wrap;
+    /* Colonna Sinistra (AREA) - In basso a sinistra */
+    .side-col.left-col {
+        order: 2;
+        align-items: flex-start; /* Allinea a sinistra */
+    }
+
+    /* Colonna Destra (MUSICA) - In basso a destra */
+    .side-col.right-col {
+        order: 3;
+        align-items: flex-end; /* Allinea a destra */
     }
     
-    .value-big { font-size: 20px; }
+    /* Ridimensionamento Testi Mobile */
+    .value-big { font-size: 22px; }
+    
+    /* FIX BOTTONE NEXT LEVEL SU MOBILE */
+    #next-level-btn {
+        font-size: 14px; /* Font più piccolo */
+        padding: 10px 20px; /* Meno padding */
+        white-space: nowrap; /* Impedisce di andare a capo */
+        width: auto;
+        min-width: 120px;
+    }
 }
 
-/* --- MEDIA QUERY (Mobile Landscape / Schermi bassi) --- */
+/* --- MEDIA QUERY (Schermi molto bassi / Landscape) --- */
 @media (max-height: 600px) {
-    #game-logo { max-height: 40px; }
-    .label-mini { font-size: 8px; }
-    .value-mini { font-size: 14px; }
+    #game-logo { max-height: 30px; }
+    #header-row { margin-bottom: 5px; }
+    .label-mini { display: none; } /* Nascondi etichette se c'è poco spazio verticale */
     
     #game-wrapper {
-        width: 70vh;
-        height: 70vh;
+        width: 65vh;
+        height: 65vh;
     }
 }
