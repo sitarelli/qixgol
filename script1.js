@@ -1,9 +1,11 @@
-/* script.js - v2.1: Fix HTML Structure & Leaderboard */
+/* script.js - v2.2: FIX VARIABILE SUPABASE */
 
-// --- 1. CONFIGURAZIONE SUPABASE ---
+// --- 1. CONFIGURAZIONE SUPABASE (CORRETTA) ---
 const SUPABASE_URL = 'https://rhttiiwsouqnlwoqpcvb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_EamNmDEcYnm9qeKTiSw7Rw_Sb9BVsVW';
-const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// FIX: Ho cambiato il nome della variabile da 'supabase' a 'dbClient' per evitare conflitti
+const dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // --- CONFIGURAZIONE GIOCO ---
 const W = 160; 
@@ -21,7 +23,7 @@ const CELL_UNCLAIMED = 0;
 const CELL_CLAIMED = 1;
 const CELL_STIX = 2;
 
-// Riferimenti DOM (ORA ESISTONO TUTTI NELL'HTML)
+// Riferimenti DOM
 const imageCanvas = document.getElementById('imageCanvas');
 const gridCanvas = document.getElementById('gridCanvas');
 const entityCanvas = document.getElementById('entityCanvas');
@@ -446,6 +448,8 @@ function gameLoop(now){
     requestAnimationFrame(gameLoop);
 }
 
+// --- GESTIONE CLASSIFICA FIXATA (usa dbClient) ---
+
 async function gestisciFinePartita(vittoria) {
     if(!gameOverScreen) { alert("GAME OVER! Punteggio: " + score); window.location.reload(); return; }
     gameOverScreen.classList.remove('hidden'); finalScoreVal.innerText = score;
@@ -456,7 +460,10 @@ async function gestisciFinePartita(vittoria) {
 
 async function checkAndShowLeaderboard() {
     leaderboardList.innerHTML = "<li>Caricamento dati...</li>"; inputSection.classList.add('hidden'); 
-    let { data: classifica, error } = await supabase.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10);
+    
+    // NOTA: Qui uso dbClient invece di supabase
+    let { data: classifica, error } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10);
+    
     if (error) { console.error("Errore Supabase:", error); leaderboardList.innerHTML = "<li>Errore caricamento.</li>"; return; }
     let entraInClassifica = false;
     if (classifica.length < 10) entraInClassifica = true; else if (score > classifica[9].punteggio) entraInClassifica = true;
@@ -479,9 +486,16 @@ window.salvaPunteggio = async function() {
     const nome = playerNameInput.value.trim();
     if (nome.length === 0 || nome.length > 8) { alert("Inserisci un nome valido (1-8 caratteri)"); return; }
     const btn = document.getElementById('btn-save'); if(btn) { btn.disabled = true; btn.innerText = "Salvataggio..."; }
-    const { error } = await supabase.from('classifica').insert([{ nome: nome, punteggio: score }]);
+    
+    // NOTA: Qui uso dbClient invece di supabase
+    const { error } = await dbClient.from('classifica').insert([{ nome: nome, punteggio: score }]);
+    
     if (error) { alert("Errore: " + error.message); if(btn) btn.disabled = false; } 
-    else { inputSection.classList.add('hidden'); const { data } = await supabase.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10); disegnaLista(data); }
+    else { 
+        inputSection.classList.add('hidden'); 
+        const { data } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10); 
+        disegnaLista(data); 
+    }
 }
 
 window.riavviaGioco = function() { window.location.reload(); }
