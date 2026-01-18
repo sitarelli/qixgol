@@ -1,4 +1,4 @@
-/* script.js - v2.6: CHAOS EDITION (Random Skins & Red Spiders) */
+/* script.js - v2.7: VISIBLE SKINS & TEXT FIX */
 
 // 1. SUPABASE
 const SUPABASE_URL = 'https://rhttiiwsouqnlwoqpcvb.supabase.co';
@@ -18,18 +18,18 @@ const POINTS_PER_FILL = 10;
 
 const CELL_UNCLAIMED = 0; const CELL_CLAIMED = 1; const CELL_STIX = 2;
 
-// --- NUOVO: SISTEMA SKIN CASUALI ---
+// --- SISTEMA SKIN (COLORI PIÙ ACCESI) ---
 const SKINS = [
-    { name: "CLASSIC",   primary: '#ffff00', secondary: '#ffaa00', trail: '#00ffff' }, // Giallo/Azzurro
-    { name: "MATRIX",    primary: '#00ff00', secondary: '#003300', trail: '#008800' }, // Tutto Verde
-    { name: "INFERNO",   primary: '#ff3300', secondary: '#ffaa00', trail: '#ff0000' }, // Fuoco
-    { name: "ICE",       primary: '#ffffff', secondary: '#aaccff', trail: '#0088ff' }, // Ghiaccio
-    { name: "CYBERPUNK", primary: '#ff00ff', secondary: '#00ffff', trail: '#ffff00' }, // Neon
-    { name: "GOLD",      primary: '#ffd700', secondary: '#ffcc00', trail: '#ffffff' }  // Oro
+    { name: "CLASSIC",   primary: '#ffff00', secondary: '#ffaa00', trail: '#00ffff' }, // Giallo
+    { name: "MATRIX",    primary: '#00ff00', secondary: '#008800', trail: '#33ff33' }, // Verde
+    { name: "INFERNO",   primary: '#ff3300', secondary: '#ffaa00', trail: '#ff4400' }, // Rosso
+    { name: "ICE",       primary: '#ffffff', secondary: '#aaccff', trail: '#0088ff' }, // Bianco/Blu
+    { name: "CYBERPUNK", primary: '#ff00ff', secondary: '#00ffff', trail: '#ff00ff' }, // Viola
+    { name: "GOLD",      primary: '#ffd700', secondary: '#ffcc00', trail: '#ffffaa' }  // Oro
 ];
 let currentSkin = SKINS[0];
 
-// --- NUOVO: GENERATORE NOMI MISSIONE ---
+// --- NOMI MISSIONE ---
 const MISSION_PREFIX = ["OPERATION", "PROTOCOL", "PROJECT", "INITIATIVE", "CODE"];
 const MISSION_SUFFIX = ["OMEGA", "ZERO", "GHOST", "NEON", "STORM", "PHANTOM", "ECHO"];
 
@@ -209,7 +209,7 @@ function initGame(lvl, resetLives = true){
     if (resetLives) { 
         lives = START_LIVES; 
         score = 0; 
-        pickRandomSkin(); // Nuova skin a ogni partita
+        pickRandomSkin(); 
     }
     
     levelStartTime = Date.now();
@@ -254,10 +254,12 @@ function initGame(lvl, resetLives = true){
     updateUI();
     tryPlayMusic(); 
 
-    // --- RANDOM MISSION START ---
+    // --- RANDOM MISSION START (Tempo aumentato a 5000ms = 5 sec) ---
     if(level === 1) {
-        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 2500);
-        spawnFloatingText(`SKIN: ${currentSkin.name}`, W/2, H/2 + 20, 16, '#888', 2000);
+        // Testo missione grande
+        spawnFloatingText(generateMissionName(), W/2, H/2 - 10, 30, currentSkin.primary, 5000);
+        // Nome Skin sotto
+        spawnFloatingText(`SKIN: ${currentSkin.name}`, W/2, H/2 + 20, 16, '#cccccc', 4000);
     }
     else if(level === 7) spawnFloatingText("FINAL STAGE!", W/2, H/2 - 10, 35, '#ff0000', 3000);
     else if (level === 8) {
@@ -292,7 +294,6 @@ function spawnParticles(x, y, type) {
     else if (type === 'fill_spark') { count = 4; pColor = currentSkin.trail; }
     else if (type === 'player') { count = 1; pColor = Math.random() > 0.5 ? currentSkin.primary : currentSkin.secondary; }
     else if (type === 'spider') {
-        // RAGNI ROSSI DAL LIVELLO 6
         if(level >= 6) {
             pColor = Math.random() > 0.5 ? '#ff0000' : '#880000'; // Rosso puro
         } else {
@@ -325,11 +326,10 @@ function draw() {
     
     let rectSizeX = Math.ceil(scaleX), rectSizeY = Math.ceil(scaleY);
 
-    // Stix (Usa colore SKIN)
+    // FIX VISIBILITÀ LINEA: Colore solido (niente pulse bianco)
     if(stixList.length > 0){
-        // Pulsazione tra bianco e colore trail della skin
-        const pulse = Math.sin(Date.now() / 50) > 0 ? '#ffffff' : currentSkin.trail;
-        entCtx.fillStyle = pulse; entCtx.beginPath();
+        entCtx.fillStyle = currentSkin.trail; 
+        entCtx.beginPath();
         for(let p of stixList){ entCtx.rect(Math.floor(p.x*scaleX), Math.floor(p.y*scaleY), rectSizeX, rectSizeY); }
         entCtx.fill(); 
         entCtx.shadowColor = currentSkin.trail; entCtx.shadowBlur = 10; 
@@ -360,11 +360,9 @@ function draw() {
             entCtx.save(); entCtx.translate((q.x + 0.5) * scaleX, (q.y + 0.5) * scaleY);
             let angle = Math.atan2(q.vy, q.vx); entCtx.rotate(angle + Math.PI / 2);
             
-            // LOGICA RAGNI ROSSI
             if(isDying) { 
                 entCtx.shadowColor = 'red'; entCtx.shadowBlur = 20; 
             } else if (level >= 6) {
-                // AURA ROSSA DEMONIACA
                 entCtx.shadowColor = '#ff0000'; entCtx.shadowBlur = 20; 
             }
 
@@ -372,7 +370,7 @@ function draw() {
             entCtx.fillText('🕷️', 0, 0); entCtx.restore();
         }
 
-        // DISEGNO GIOCATORE
+        // DISEGNO GIOCATORE CON AURA VISIBILE
         if (isDying) playerAnimScale = Math.max(0, playerAnimScale - 0.1); else playerAnimScale = Math.min(1, playerAnimScale + 0.05); 
         if(playerAnimScale > 0.01) {
             entCtx.save(); entCtx.translate((player.x + 0.5) * scaleX, (player.y + 0.5) * scaleY);
@@ -381,9 +379,18 @@ function draw() {
             entCtx.rotate(playerAngle);
             
             const blinkPhase = Math.sin((Date.now() / 500) * Math.PI); const glowBlur = 10 + 10 * Math.abs(blinkPhase); 
-            // Usa colore SKIN
-            entCtx.shadowColor = currentSkin.trail; entCtx.shadowBlur = glowBlur;
             
+            // FIX SKIN: Disegna cerchio solido dietro
+            entCtx.fillStyle = currentSkin.primary;
+            entCtx.shadowColor = currentSkin.trail; 
+            entCtx.shadowBlur = glowBlur;
+            
+            entCtx.beginPath();
+            entCtx.arc(0, 0, Math.min(scaleX, scaleY) * 2.5, 0, Math.PI * 2);
+            entCtx.fill();
+
+            // Emoji sopra
+            entCtx.shadowBlur = 0; // Reset ombra per il testo
             entCtx.font = `${Math.min(scaleX, scaleY) * 5.5}px sans-serif`; entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
             entCtx.fillText('⚽', 0, 0); entCtx.restore(); 
         }
