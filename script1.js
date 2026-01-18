@@ -1,15 +1,12 @@
-/* script.js - v2.2: FIX VARIABILE SUPABASE */
+/* script.js - v2.3: Start Fix & Audio Check */
 
-// --- 1. CONFIGURAZIONE SUPABASE (CORRETTA) ---
+// 1. SUPABASE
 const SUPABASE_URL = 'https://rhttiiwsouqnlwoqpcvb.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_EamNmDEcYnm9qeKTiSw7Rw_Sb9BVsVW';
-
-// FIX: Ho cambiato il nome della variabile da 'supabase' a 'dbClient' per evitare conflitti
 const dbClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// --- CONFIGURAZIONE GIOCO ---
-const W = 160; 
-const H = 160;
+// 2. CONFIGURAZIONE GIOCO
+const W = 160; const H = 160;
 const PLAYER_SPEED_CELLS = 1; 
 const WIN_PERCENT = 75;
 const START_LIVES = 3;
@@ -19,11 +16,9 @@ const POINTS_PER_LEVEL = 1000;
 const MAX_TIME_BONUS = 500;    
 const POINTS_PER_FILL = 10;    
 
-const CELL_UNCLAIMED = 0;
-const CELL_CLAIMED = 1;
-const CELL_STIX = 2;
+const CELL_UNCLAIMED = 0; const CELL_CLAIMED = 1; const CELL_STIX = 2;
 
-// Riferimenti DOM
+// DOM
 const imageCanvas = document.getElementById('imageCanvas');
 const gridCanvas = document.getElementById('gridCanvas');
 const entityCanvas = document.getElementById('entityCanvas');
@@ -31,7 +26,7 @@ const nextLevelContainer = document.getElementById('next-level-container');
 const nextLevelBtn = document.getElementById('next-level-btn');
 const gameWrapper = document.getElementById('game-wrapper');
 
-// Riferimenti LEADERBOARD
+// LEADERBOARD DOM
 const gameOverScreen = document.getElementById('game-over-screen');
 const endTitle = document.getElementById('end-title');
 const finalScoreVal = document.getElementById('final-score-val');
@@ -39,13 +34,13 @@ const inputSection = document.getElementById('input-section');
 const playerNameInput = document.getElementById('player-name');
 const leaderboardList = document.getElementById('leaderboard-list');
 
-// MUSICA & AUDIO
+// AUDIO
 const bgMusic = document.getElementById('bg-music');
 const gameoverSound = document.getElementById('gameover-sound');
 const musicBtn = document.getElementById('music-btn');
 let isMusicOn = true; 
 
-// Variabili
+// VARIABILI STATO
 let bgImage = new Image();
 let imageLoaded = false;
 let grid = new Uint8Array(W * H);
@@ -74,6 +69,7 @@ let entCtx = entityCanvas.getContext('2d');
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx = new AudioContext();
 
+// --- FUNZIONI AUDIO ---
 function playSound(type) {
     if (audioCtx.state === 'suspended') { audioCtx.resume(); }
     const osc = audioCtx.createOscillator();
@@ -99,7 +95,8 @@ function playSound(type) {
 
 function tryPlayMusic() {
     if (isMusicOn && bgMusic && bgMusic.paused) {
-        bgMusic.play().catch(e => { console.log("Aspetto interazione per audio..."); });
+        // Tenta di avviare la musica. Se il browser blocca, aspetta interazione utente.
+        bgMusic.play().catch(e => { console.log("Musica in attesa di interazione..."); });
     }
 }
 
@@ -161,7 +158,8 @@ function initGame(lvl, resetLives = true){
     initGrid();
     stixList = [];
     player.x = Math.floor(W/2); player.y = H-1;
-    player.drawing = false; player.dir = {x:0,y:0};
+    player.drawing = false; 
+    player.dir = {x:0,y:0}; // Reset direzione a ferma
     
     qixList = [];
     let numSpiders = 1;
@@ -185,7 +183,7 @@ function initGame(lvl, resetLives = true){
 
     resizeCanvases();
     updateUI();
-    tryPlayMusic();
+    tryPlayMusic(); // Tenta di avviare musica ad ogni livello
 
     if(level === 7) spawnFloatingText("FINAL STAGE!", W/2, H/2 - 10, 35, '#ff0000', 3000);
     else if (level === 8) {
@@ -448,7 +446,7 @@ function gameLoop(now){
     requestAnimationFrame(gameLoop);
 }
 
-// --- GESTIONE CLASSIFICA FIXATA (usa dbClient) ---
+// --- DB FUNZIONI ---
 
 async function gestisciFinePartita(vittoria) {
     if(!gameOverScreen) { alert("GAME OVER! Punteggio: " + score); window.location.reload(); return; }
@@ -460,11 +458,13 @@ async function gestisciFinePartita(vittoria) {
 
 async function checkAndShowLeaderboard() {
     leaderboardList.innerHTML = "<li>Caricamento dati...</li>"; inputSection.classList.add('hidden'); 
-    
-    // NOTA: Qui uso dbClient invece di supabase
     let { data: classifica, error } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10);
     
-    if (error) { console.error("Errore Supabase:", error); leaderboardList.innerHTML = "<li>Errore caricamento.</li>"; return; }
+    if (error) { 
+        console.error("Errore Supabase:", error); 
+        leaderboardList.innerHTML = "<li>Errore caricamento (Vedi Console).</li>"; return; 
+    }
+    
     let entraInClassifica = false;
     if (classifica.length < 10) entraInClassifica = true; else if (score > classifica[9].punteggio) entraInClassifica = true;
     if (score === 0) entraInClassifica = false;
@@ -487,11 +487,14 @@ window.salvaPunteggio = async function() {
     if (nome.length === 0 || nome.length > 8) { alert("Inserisci un nome valido (1-8 caratteri)"); return; }
     const btn = document.getElementById('btn-save'); if(btn) { btn.disabled = true; btn.innerText = "Salvataggio..."; }
     
-    // NOTA: Qui uso dbClient invece di supabase
+    // DEBUG: Mostra errore dettagliato in console se fallisce
     const { error } = await dbClient.from('classifica').insert([{ nome: nome, punteggio: score }]);
     
-    if (error) { alert("Errore: " + error.message); if(btn) btn.disabled = false; } 
-    else { 
+    if (error) { 
+        console.error("ERRORE SALVATAGGIO:", error);
+        alert("Errore: " + error.message + " (Codice: " + error.code + ")"); 
+        if(btn) btn.disabled = false; 
+    } else { 
         inputSection.classList.add('hidden'); 
         const { data } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10); 
         disegnaLista(data); 
@@ -518,7 +521,7 @@ gameWrapper.addEventListener('touchmove', e => { if (isButton(e)) return; e.prev
 gameWrapper.addEventListener('touchend', e => { if (isButton(e)) return; e.preventDefault(); let touchEndX = e.changedTouches[0].screenX; let touchEndY = e.changedTouches[0].screenY; handleSwipe(touchEndX - touchStartX, touchEndY - touchStartY); }, {passive: false});
 function handleSwipe(dx, dy) { if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return; if (Math.abs(dx) > Math.abs(dy)) player.dir = { x: dx > 0 ? 1 : -1, y: 0 }; else player.dir = { x: 0, y: dy > 0 ? 1 : -1 }; }
 
-// --- GESTIONE AVVIO E CARICAMENTO ---
+// --- START ---
 const loadingScreen = document.getElementById('loading-screen');
 const loadingBar = document.getElementById('loading-bar');
 const loadingText = document.getElementById('loading-text');
@@ -526,7 +529,16 @@ const startBtn = document.getElementById('start-game-btn');
 const loadingBarContainer = document.getElementById('loading-bar-container');
 
 function startGame() {
-    resizeCanvases(); initGame(1, true); player.dir = {x: 0, y: -1}; setTimeout(resizeCanvases, 100);
+    resizeCanvases(); 
+    initGame(1, true); 
+    
+    // FIX MOVIMENTO: Imposto la direzione DOPO l'initGame
+    setTimeout(() => {
+        player.dir = {x: 0, y: -1}; 
+        console.log("Auto-start attivato verso l'alto!");
+    }, 100);
+
+    setTimeout(resizeCanvases, 150);
 }
 
 let loadProgress = 0;
@@ -551,6 +563,7 @@ if(startBtn) {
     startBtn.addEventListener('click', () => {
         if (audioCtx.state === 'suspended') { audioCtx.resume().then(() => { console.log("Audio Context Resumed"); }); }
         if(loadingScreen) loadingScreen.style.opacity = '0';
+        tryPlayMusic(); // Tenta avvio musica al click
         setTimeout(() => { if(loadingScreen) loadingScreen.style.display = 'none'; startGame(); }, 500);
     });
 }
