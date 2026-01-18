@@ -1,4 +1,4 @@
-/* script.js - v2.3: Start Fix & Audio Check */
+/* script.js - v2.5: PERFORMANCE EDITION (No Lag & Preloading) */
 
 // 1. SUPABASE
 const SUPABASE_URL = 'https://rhttiiwsouqnlwoqpcvb.supabase.co';
@@ -41,8 +41,10 @@ const musicBtn = document.getElementById('music-btn');
 let isMusicOn = true; 
 
 // VARIABILI STATO
-let bgImage = new Image();
-let imageLoaded = false;
+// OTTIMIZZAZIONE: Cache Immagini
+const levelImages = []; 
+let currentBgImage = null; // Immagine livello corrente
+
 let grid = new Uint8Array(W * H);
 let stixList = []; 
 let lives = START_LIVES;
@@ -62,12 +64,25 @@ let particles = [];
 let floatingTexts = []; 
 let player = { x: Math.floor(W/2), y: H-1, drawing: false, dir: {x:0,y:0} };
 let qixList = []; 
-let imgCtx = imageCanvas.getContext('2d');
+
+// Contexts
+let imgCtx = imageCanvas.getContext('2d', { alpha: false }); // Alpha false per performance
 let gridCtx = gridCanvas.getContext('2d');
 let entCtx = entityCanvas.getContext('2d');
 
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx = new AudioContext();
+
+// --- PRELOADING IMMAGINI ---
+// Carica tutte le immagini all'avvio per evitare lag dopo
+function preloadLevelImages() {
+    for (let i = 1; i <= MAX_LEVEL; i++) {
+        const img = new Image();
+        img.src = `img${i}.png`;
+        // Fallback banale per jpg se png fallisce (gestito in initGame per sicurezza, qui precarichiamo)
+        levelImages[i] = img;
+    }
+}
 
 // --- FUNZIONI AUDIO ---
 function playSound(type) {
@@ -95,8 +110,7 @@ function playSound(type) {
 
 function tryPlayMusic() {
     if (isMusicOn && bgMusic && bgMusic.paused) {
-        // Tenta di avviare la musica. Se il browser blocca, aspetta interazione utente.
-        bgMusic.play().catch(e => { console.log("Musica in attesa di interazione..."); });
+        bgMusic.play().catch(e => { console.log("Musica attende interazione..."); });
     }
 }
 
@@ -105,15 +119,47 @@ if(musicBtn) {
         isMusicOn = !isMusicOn;
         if (isMusicOn) {
             if(bgMusic) bgMusic.play();
-            musicBtn.textContent = "🎵";
-            musicBtn.classList.remove('off');
+            musicBtn.textContent = "🎵"; musicBtn.classList.remove('off');
         } else {
             if(bgMusic) bgMusic.pause();
-            musicBtn.textContent = "🔇";
-            musicBtn.classList.add('off');
+            musicBtn.textContent = "🔇"; musicBtn.classList.add('off');
         }
         musicBtn.blur();
     });
+}
+
+// --- GRAFICA OTTIMIZZATA ---
+// Ridisegna SOLO i layer statici (Sfondo e Griglia Nera)
+function redrawStaticLayers() {
+    if (!currentBgImage) return;
+
+    // 1. Disegna Sfondo (ImageCanvas)
+    imgCtx.drawImage(currentBgImage, 0, 0, imageCanvas.width, imageCanvas.height);
+
+    // 2. Ricostruisce la Griglia (GridCanvas)
+    // Invece di disegnare ogni frame, puliamo tutto e ridisegnamo la maschera nera
+    gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
+    
+    // Riempi tutto di nero
+    gridCtx.fillStyle = 'black';
+    gridCtx.fillRect(0, 0, gridCanvas.width, gridCanvas.height);
+
+    // "Taglia" i buchi dove è CLAIMED
+    let rectSizeX = Math.ceil(scaleX);
+    let rectSizeY = Math.ceil(scaleY);
+
+    // Usiamo globalCompositeOperation per "cancellare" disegnando
+    gridCtx.globalCompositeOperation = 'destination-out';
+    gridCtx.beginPath();
+    for(let y=0; y<H; y++){ 
+        for(let x=0; x<W; x++){ 
+            if(grid[idx(x,y)] === CELL_CLAIMED) {
+                gridCtx.rect(Math.floor(x*scaleX), Math.floor(y*scaleY), rectSizeX, rectSizeY);
+            }
+        }
+    }
+    gridCtx.fill();
+    gridCtx.globalCompositeOperation = 'source-over'; // Rimetti normale
 }
 
 function resizeCanvases() {
@@ -125,7 +171,10 @@ function resizeCanvases() {
     });
     scaleX = imageCanvas.width / W;
     scaleY = imageCanvas.height / H;
-    if(!isPlaying && imageLoaded && !isVictory) draw();
+    
+    // Quando ridimensioni, devi ridisegnare i layer statici
+    redrawStaticLayers();
+    
     if(isVictory) drawVictory(); 
 }
 
@@ -134,8 +183,12 @@ function inBounds(x,y){ return x>=0 && x<W && y>=0 && y<H; }
 
 function initGrid(){
     grid.fill(CELL_UNCLAIMED);
+    // Bordi già claimed
     for(let x=0;x<W;x++){ grid[idx(x,0)] = CELL_CLAIMED; grid[idx(x,H-1)] = CELL_CLAIMED; }
     for(let y=0;y<H;y++){ grid[idx(0,y)] = CELL_CLAIMED; grid[idx(W-1,y)] = CELL_CLAIMED; }
+    
+    // Forza il ridisegno della griglia nera
+    redrawStaticLayers();
 }
 
 function spawnFloatingText(text, x, y, size = 24, color = 'white', duration = 1500) {
@@ -155,11 +208,23 @@ function initGame(lvl, resetLives = true){
     if(nextLevelContainer) nextLevelContainer.style.display = 'none'; 
     gameWrapper.style.cursor = 'none';
 
-    initGrid();
+    // Gestione Immagine
+    let imgSource = `img${level}.png`;
+    currentBgImage = new Image();
+    currentBgImage.src = imgSource;
+    currentBgImage.onload = () => { 
+        redrawStaticLayers(); 
+    };
+    currentBgImage.onerror = () => { 
+        currentBgImage.src = `img${level}.jpg`; // Fallback
+        currentBgImage.onload = () => redrawStaticLayers();
+    };
+
+    initGrid(); // Questo resetta la griglia logica e grafica
     stixList = [];
     player.x = Math.floor(W/2); player.y = H-1;
     player.drawing = false; 
-    player.dir = {x:0,y:0}; // Reset direzione a ferma
+    player.dir = {x:0,y:0}; 
     
     qixList = [];
     let numSpiders = 1;
@@ -175,15 +240,10 @@ function initGame(lvl, resetLives = true){
             vy: (Math.random() * 0.8 + 0.4) * (Math.random() < 0.5 ? -1 : 1)
         });
     }
-    
-    imageLoaded = false;
-    bgImage.src = `img${level}.png`; 
-    bgImage.onload = () => { imageLoaded = true; };
-    bgImage.onerror = () => { bgImage.src = `img${level}.jpg`; bgImage.onload = () => { imageLoaded = true; }; };
 
     resizeCanvases();
     updateUI();
-    tryPlayMusic(); // Tenta di avviare musica ad ogni livello
+    tryPlayMusic(); 
 
     if(level === 7) spawnFloatingText("FINAL STAGE!", W/2, H/2 - 10, 35, '#ff0000', 3000);
     else if (level === 8) {
@@ -211,8 +271,12 @@ function getClaimPercent(){
 function addShake(amount) { shakeIntensity = amount; }
 
 function spawnParticles(x, y, type) {
+    // OTTIMIZZAZIONE: Meno particelle su mobile
     let count = 1; 
-    if (type === 'explosion') count = 50; else if (type === 'fill_spark') count = 5; else if (type === 'player') count = 2;
+    if (type === 'explosion') count = 30; // Ridotto da 50
+    else if (type === 'fill_spark') count = 4; 
+    else if (type === 'player') count = 1; // Ridotto da 2
+    
     for(let i=0; i<count; i++){
         let p = {
             x: x + (Math.random() - 0.5) * 0.8, y: y + (Math.random() - 0.5) * 0.8,
@@ -224,57 +288,63 @@ function spawnParticles(x, y, type) {
         else if (type === 'explosion') {
             const angle = Math.random() * Math.PI * 2; const speed = Math.random() * 2.5; 
             p.vx = Math.cos(angle) * speed; p.vy = Math.sin(angle) * speed;
-            p.decay = 0.015 + Math.random() * 0.02; p.color = Math.random() > 0.3 ? '#ff2200' : '#ffffff'; 
+            p.decay = 0.02 + Math.random() * 0.03; p.color = Math.random() > 0.3 ? '#ff2200' : '#ffffff'; 
         } else if (type === 'fill_spark') { p.color = '#00ffff'; p.vx *= 2; p.vy *= 2; }
         particles.push(p);
     }
 }
 
+// --- MAIN DRAW LOOP (OTTIMIZZATO) ---
 function draw() {
     let offsetX = 0, offsetY = 0;
     if (shakeIntensity > 0) {
         offsetX = (Math.random() - 0.5) * shakeIntensity; offsetY = (Math.random() - 0.5) * shakeIntensity;
         shakeIntensity *= 0.9; if(shakeIntensity < 0.5) shakeIntensity = 0;
     }
-    [imgCtx, gridCtx, entCtx].forEach(ctx => {
-        ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0,0,imageCanvas.width,imageCanvas.height); ctx.translate(offsetX, offsetY);
-    });
+    
+    // OTTIMIZZAZIONE: Puliamo SOLO il canvas delle entità (gli altri sono statici)
+    entCtx.setTransform(1, 0, 0, 1, 0, 0); 
+    entCtx.clearRect(0,0,entityCanvas.width,entityCanvas.height); 
+    entCtx.translate(offsetX, offsetY);
+    
+    // Applichiamo shake anche agli altri canvas solo tramite traslazione (senza ridisegnare)
+    // Nota: Per semplicità di ottimizzazione, lo shake muove solo le entità ora, 
+    // oppure dovremmo ridisegnare tutto. Per performance, shakiamo solo entCtx o CSS.
+    // CSS Shake è meglio per performance globale, ma qui teniamo entCtx shake.
 
-    if(imageLoaded) imgCtx.drawImage(bgImage, 0, 0, imageCanvas.width, imageCanvas.height);
-    else { imgCtx.fillStyle = '#111'; imgCtx.fillRect(0,0,imageCanvas.width, imageCanvas.height); }
-
-    gridCtx.fillStyle = 'black'; gridCtx.beginPath(); 
     let rectSizeX = Math.ceil(scaleX), rectSizeY = Math.ceil(scaleY);
-    for(let y=0;y<H;y++){ for(let x=0;x<W;x++){ 
-        if(grid[idx(x,y)] === CELL_UNCLAIMED) gridCtx.rect(Math.floor(x*scaleX), Math.floor(y*scaleY), rectSizeX, rectSizeY);
-    }}
-    gridCtx.fill();
 
+    // 1. Disegno Stix (Linea Giocatore) - ORA SU ENTITY CANVAS
     if(stixList.length > 0){
         const pulse = Math.sin(Date.now() / 50) > 0 ? '#ffffff' : '#00ffff';
-        gridCtx.fillStyle = pulse; gridCtx.beginPath();
-        for(let p of stixList){ gridCtx.rect(Math.floor(p.x*scaleX), Math.floor(p.y*scaleY), rectSizeX, rectSizeY); }
-        gridCtx.fill(); gridCtx.shadowColor = '#00ffff'; gridCtx.shadowBlur = 10; gridCtx.stroke(); gridCtx.shadowBlur = 0; 
+        entCtx.fillStyle = pulse; entCtx.beginPath();
+        for(let p of stixList){ entCtx.rect(Math.floor(p.x*scaleX), Math.floor(p.y*scaleY), rectSizeX, rectSizeY); }
+        entCtx.fill(); entCtx.shadowColor = '#00ffff'; entCtx.shadowBlur = 10; 
+        // entCtx.stroke(); // Stroke pesante, tolto per performance
+        entCtx.shadowBlur = 0; 
     }
 
+    // 2. Flash Effect (Ora su ENTITY CANVAS)
     if(flashList.length > 0) {
-        gridCtx.save(); gridCtx.fillStyle = 'white'; gridCtx.shadowColor = 'white'; gridCtx.shadowBlur = 20; gridCtx.beginPath();
+        entCtx.save(); entCtx.fillStyle = 'white'; entCtx.shadowColor = 'white'; entCtx.shadowBlur = 20; entCtx.beginPath();
         for (let i = flashList.length - 1; i >= 0; i--) {
             let f = flashList[i];
             let fx = f.idx % W; let fy = Math.floor(f.idx / W);
-            gridCtx.rect(Math.floor(fx * scaleX), Math.floor(fy * scaleY), rectSizeX, rectSizeY);
+            entCtx.rect(Math.floor(fx * scaleX), Math.floor(fy * scaleY), rectSizeX, rectSizeY);
             f.timer--; if (f.timer <= 0) flashList.splice(i, 1);
         }
-        gridCtx.fill(); gridCtx.restore(); 
+        entCtx.fill(); entCtx.restore(); 
     }
 
     if (isPlaying) {
+        // Particelle
         for(let i = particles.length - 1; i >= 0; i--){
             let p = particles[i]; entCtx.fillStyle = p.color; entCtx.globalAlpha = p.life;
             entCtx.fillRect(p.x * scaleX, p.y * scaleY, scaleX, scaleY);
             entCtx.globalAlpha = 1.0; p.x += p.vx; p.y += p.vy; p.vx *= 0.95; p.vy *= 0.95; p.life -= p.decay;
             if(p.life <= 0) particles.splice(i, 1);
         }
+        // Nemici
         for (let q of qixList) {
             entCtx.save(); entCtx.translate((q.x + 0.5) * scaleX, (q.y + 0.5) * scaleY);
             let angle = Math.atan2(q.vy, q.vx); entCtx.rotate(angle + Math.PI / 2);
@@ -282,6 +352,7 @@ function draw() {
             entCtx.font = `${Math.min(scaleX, scaleY) * 7.5}px serif`; entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
             entCtx.fillText('🕷️', 0, 0); entCtx.restore();
         }
+        // Giocatore
         if (isDying) playerAnimScale = Math.max(0, playerAnimScale - 0.1); else playerAnimScale = Math.min(1, playerAnimScale + 0.05); 
         if(playerAnimScale > 0.01) {
             entCtx.save(); entCtx.translate((player.x + 0.5) * scaleX, (player.y + 0.5) * scaleY);
@@ -293,6 +364,7 @@ function draw() {
             entCtx.font = `${Math.min(scaleX, scaleY) * 5.5}px sans-serif`; entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
             entCtx.fillText('⚽', 0, 0); entCtx.restore(); 
         }
+        // Testi
         for(let i = floatingTexts.length - 1; i >= 0; i--){
             let ft = floatingTexts[i]; entCtx.save(); let color = ft.color || 'white'; entCtx.fillStyle = color; entCtx.globalAlpha = ft.opacity;
             let fontSize = ft.size || 24; entCtx.font = `bold ${fontSize}px 'Orbitron', sans-serif`; entCtx.textAlign = 'center'; entCtx.shadowColor = color; entCtx.shadowBlur = 10;
@@ -329,11 +401,33 @@ function closeStixAndFill(){
             visited[idn]=1; stack.push({x:nx,y:ny});
         }
     }
+    
+    // OTTIMIZZAZIONE GRID:
+    // Invece di ridisegnare tutta la griglia ogni frame, 
+    // aggiorniamo solo le parti che sono diventate CLAIMED ora.
     let filled = 0;
+    
+    gridCtx.globalCompositeOperation = 'destination-out'; // Modalità "Gomma da cancellare"
+    gridCtx.beginPath();
+    let rectSizeX = Math.ceil(scaleX);
+    let rectSizeY = Math.ceil(scaleY);
+    
     for(let i=0; i<grid.length; i++){
-        if(grid[i]===CELL_UNCLAIMED && !visited[i]){ grid[i] = CELL_CLAIMED; filled++; flashList.push({idx: i, timer: 15}); }
-        if(grid[i]===CELL_STIX){ grid[i] = CELL_CLAIMED; flashList.push({idx: i, timer: 15}); }
+        if(grid[i]===CELL_UNCLAIMED && !visited[i]){ 
+            grid[i] = CELL_CLAIMED; filled++; flashList.push({idx: i, timer: 15}); 
+            // Cancella questo blocco dalla maschera nera
+            let x = i % W; let y = Math.floor(i / W);
+            gridCtx.rect(Math.floor(x*scaleX), Math.floor(y*scaleY), rectSizeX, rectSizeY);
+        }
+        if(grid[i]===CELL_STIX){ 
+            grid[i] = CELL_CLAIMED; flashList.push({idx: i, timer: 15}); 
+            let x = i % W; let y = Math.floor(i / W);
+            gridCtx.rect(Math.floor(x*scaleX), Math.floor(y*scaleY), rectSizeX, rectSizeY);
+        }
     }
+    gridCtx.fill();
+    gridCtx.globalCompositeOperation = 'source-over'; // Torna normale
+
     stixList = []; 
     if(filled > 0) {
         playSound('fill'); score += POINTS_PER_FILL; 
@@ -376,7 +470,19 @@ function resetAfterDeath(){
                 vy: (Math.random() * 0.8 + 0.4) * (Math.random() < 0.5 ? -1 : 1)
             });
         }
-        for(let i=0; i<grid.length; i++) if(grid[i]===CELL_STIX) grid[i] = CELL_UNCLAIMED;
+        // Ripristina stix cancellati sulla griglia (ridisegna il nero)
+        gridCtx.fillStyle = 'black';
+        gridCtx.beginPath();
+        let rectSizeX = Math.ceil(scaleX), rectSizeY = Math.ceil(scaleY);
+        for(let i=0; i<grid.length; i++) {
+            if(grid[i]===CELL_STIX) {
+                grid[i] = CELL_UNCLAIMED;
+                // Ricolora di nero i pezzi che stavi disegnando
+                let x = i % W; let y = Math.floor(i / W);
+                gridCtx.rect(Math.floor(x*scaleX), Math.floor(y*scaleY), rectSizeX, rectSizeY);
+            }
+        }
+        gridCtx.fill();
         flashList = [];
     }
 }
@@ -398,7 +504,12 @@ function winLevel() {
     let levelScore = POINTS_PER_LEVEL; let timeTakenSeconds = (Date.now() - levelStartTime) / 1000;
     let timeBonus = Math.max(0, MAX_TIME_BONUS - Math.floor(timeTakenSeconds * 5));
     score += (levelScore + timeBonus);
-    grid.fill(CELL_CLAIMED); flashList = []; particles = []; floatingTexts = [];
+    
+    // Riempi tutto visualmente (pulisci il nero)
+    grid.fill(CELL_CLAIMED); 
+    gridCtx.clearRect(0,0,gridCanvas.width, gridCanvas.height);
+    
+    flashList = []; particles = []; floatingTexts = [];
     draw(); gameWrapper.style.cursor = 'default'; 
     if (level >= MAX_LEVEL) {
         isVictory = true; drawVictory(); 
@@ -447,7 +558,6 @@ function gameLoop(now){
 }
 
 // --- DB FUNZIONI ---
-
 async function gestisciFinePartita(vittoria) {
     if(!gameOverScreen) { alert("GAME OVER! Punteggio: " + score); window.location.reload(); return; }
     gameOverScreen.classList.remove('hidden'); finalScoreVal.innerText = score;
@@ -487,7 +597,6 @@ window.salvaPunteggio = async function() {
     if (nome.length === 0 || nome.length > 8) { alert("Inserisci un nome valido (1-8 caratteri)"); return; }
     const btn = document.getElementById('btn-save'); if(btn) { btn.disabled = true; btn.innerText = "Salvataggio..."; }
     
-    // DEBUG: Mostra errore dettagliato in console se fallisce
     const { error } = await dbClient.from('classifica').insert([{ nome: nome, punteggio: score }]);
     
     if (error) { 
@@ -521,7 +630,7 @@ gameWrapper.addEventListener('touchmove', e => { if (isButton(e)) return; e.prev
 gameWrapper.addEventListener('touchend', e => { if (isButton(e)) return; e.preventDefault(); let touchEndX = e.changedTouches[0].screenX; let touchEndY = e.changedTouches[0].screenY; handleSwipe(touchEndX - touchStartX, touchEndY - touchStartY); }, {passive: false});
 function handleSwipe(dx, dy) { if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return; if (Math.abs(dx) > Math.abs(dy)) player.dir = { x: dx > 0 ? 1 : -1, y: 0 }; else player.dir = { x: 0, y: dy > 0 ? 1 : -1 }; }
 
-// --- START ---
+// --- START & PRELOADING ---
 const loadingScreen = document.getElementById('loading-screen');
 const loadingBar = document.getElementById('loading-bar');
 const loadingText = document.getElementById('loading-text');
@@ -535,11 +644,14 @@ function startGame() {
     // FIX MOVIMENTO: Imposto la direzione DOPO l'initGame
     setTimeout(() => {
         player.dir = {x: 0, y: -1}; 
-        console.log("Auto-start attivato verso l'alto!");
-    }, 100);
+        if (bgMusic) { bgMusic.play().catch(e => console.log("Audio ancora bloccato")); }
+    }, 200);
 
     setTimeout(resizeCanvases, 150);
 }
+
+// PRELOAD IMAGES
+preloadLevelImages(); 
 
 let loadProgress = 0;
 const loadInterval = setInterval(() => {
@@ -563,7 +675,6 @@ if(startBtn) {
     startBtn.addEventListener('click', () => {
         if (audioCtx.state === 'suspended') { audioCtx.resume().then(() => { console.log("Audio Context Resumed"); }); }
         if(loadingScreen) loadingScreen.style.opacity = '0';
-        tryPlayMusic(); // Tenta avvio musica al click
         setTimeout(() => { if(loadingScreen) loadingScreen.style.display = 'none'; startGame(); }, 500);
     });
 }
