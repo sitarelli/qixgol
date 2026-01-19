@@ -1,4 +1,4 @@
-/* script.js - v3.0: SAFARI FIX (BLACK BG + GHOST IMAGE) */
+/* script.js - v3.1: GOD MODE & EVIL PLAYERS */
 
 // 1. SUPABASE
 const SUPABASE_URL = 'https://rhttiiwsouqnlwoqpcvb.supabase.co';
@@ -10,7 +10,7 @@ const W = 160; const H = 160;
 const PLAYER_SPEED_CELLS = 1; 
 const WIN_PERCENT = 75;
 const START_LIVES = 3;
-const MAX_LEVEL = 8; 
+const MAX_LEVEL = 10; // AUMENTATO A 10
 
 const POINTS_PER_LEVEL = 1000; 
 const MAX_TIME_BONUS = 500;     
@@ -80,6 +80,12 @@ let particles = [];
 let floatingTexts = []; 
 let player = { x: Math.floor(W/2), y: H-1, drawing: false, dir: {x:0,y:0} };
 let qixList = []; 
+let evilPlayers = []; // NUOVO: Array per le palle nemiche
+
+// VARIABILI GOD MODE & CHEAT
+let cheatBuffer = "";
+let isGodMode = false;
+let cheatDetected = false; // Se true, blocca il salvataggio in classifica
 
 // Contexts
 let imgCtx = imageCanvas.getContext('2d', { alpha: false }); 
@@ -142,41 +148,18 @@ if(musicBtn) {
     });
 }
 
-// --- GRAFICA STATIC LAYERS (FIX DEFINITIVO PER SAFARI) ---
+// --- GRAFICA STATIC LAYERS ---
 function redrawStaticLayers() {
     if (!currentBgImage) return;
-    
-    // 1. Disegna l'immagine FULL COLOR sul canvas di base (sotto)
     imgCtx.drawImage(currentBgImage, 0, 0, imageCanvas.width, imageCanvas.height);
-
-    // 2. Prepara il GRID CANVAS (il livello "copertura")
-    // Pulisci tutto
+    
+    // ANTEPRIMA SCURA
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-    
     gridCtx.save();
-    
-    // *** FIX SAFARI ***
-    // Invece di disegnare l'immagine e provare a scurirla (che Safari sbaglia),
-    // disegniamo prima il NERO, e poi l'immagine "fantasmino" sopra.
-    
-    // A. Riempi di NERO SOLIDO (questo copre sicuramente)
-    gridCtx.fillStyle = '#000000';
-    gridCtx.fillRect(0, 0, gridCanvas.width, gridCanvas.height);
-    
-    // B. Disegna l'immagine con BASSISSIMA opacità (effetto vedo-non-vedo)
-    gridCtx.globalAlpha = 0.08; // Visibile al 8% (molto scura)
-    // Se vuoi bianco e nero, decommenta la riga sotto (ma filter a volte è buggato su vecchi iOS)
-    // gridCtx.filter = 'grayscale(100%)'; 
+    gridCtx.filter = 'grayscale(100%) brightness(20%)'; 
     gridCtx.drawImage(currentBgImage, 0, 0, gridCanvas.width, gridCanvas.height);
-    
-    // C. Ripristina opacità normale
-    gridCtx.globalAlpha = 1.0;
-    gridCtx.filter = 'none';
-    
     gridCtx.restore();
 
-    // 3. "Buca" la copertura dove abbiamo conquistato
-    // Usiamo destination-out che 'cancella' il nero e mostra l'immagine sotto (imgCtx)
     let rectSizeX = Math.ceil(scaleX);
     let rectSizeY = Math.ceil(scaleY);
 
@@ -190,8 +173,6 @@ function redrawStaticLayers() {
         }
     }
     gridCtx.fill();
-    
-    // Ripristina modalità disegno normale
     gridCtx.globalCompositeOperation = 'source-over'; 
 }
 
@@ -218,7 +199,7 @@ function initGrid(){
     redrawStaticLayers();
 }
 
-function spawnFloatingText(text, x, y, size = 24, color = 'white', duration = 4000) {
+function spawnFloatingText(text, x, y, size = 24, color = 'white', duration = 4500) {
     floatingTexts.push({text, x, y, timer: duration, opacity: 1.0, size, color});
 }
 
@@ -243,18 +224,19 @@ function initGame(lvl, resetLives = true){
         let nuovaMusica = (level >= 5) ? 'part2.mp3' : 'soundtrack.mp3';
         if (!bgMusic.src.includes(nuovaMusica)) {
             bgMusic.src = nuovaMusica;
-            bgMusic.load(); 
+            bgMusic.load();
             if (isMusicOn) {
                 bgMusic.play().catch(e => console.log("Errore riproduzione musica:", e));
             }
         }
     }
-    // ----------------------------------
 
     if (resetLives) { 
         lives = START_LIVES; 
         score = 0; 
         pickRandomSkin(); 
+        isGodMode = false; // Reset God Mode a nuova partita
+        cheatDetected = false; 
     }
     
     levelStartTime = Date.now();
@@ -282,10 +264,14 @@ function initGame(lvl, resetLives = true){
     player.drawing = false; 
     player.dir = {x:0,y:0}; 
     
+    // --- GENERAZIONE NEMICI (RAGNI & PALLE NEMICHE) ---
     qixList = [];
+    evilPlayers = []; // Reset array nemici speciali
+
     let numSpiders = 1;
     if (level >= 8) numSpiders = 4; else if (level >= 7) numSpiders = 3; else if (level >= 5) numSpiders = 2; 
 
+    // Generazione Ragni
     for(let i=0; i<numSpiders; i++) {
         let startX = Math.floor(W * 0.3) + (i * 20);
         let startY = Math.floor(H * 0.3) + (i * 10);
@@ -297,20 +283,53 @@ function initGame(lvl, resetLives = true){
         });
     }
 
+    // Generazione Palle Nemiche (Level 9 e 10)
+    let numEvilBalls = 0;
+    if (level === 9) numEvilBalls = 1;
+    if (level === 10) numEvilBalls = 2;
+
+    for (let i = 0; i < numEvilBalls; i++) {
+        // Spawn lontano dal giocatore
+        let ex = Math.floor(W/2) + (Math.random() > 0.5 ? 40 : -40);
+        let ey = Math.floor(H/3);
+        evilPlayers.push({
+            x: ex, y: ey,
+            vx: (Math.random() * 0.9 + 0.5) * (Math.random() < 0.5 ? -1 : 1),
+            vy: (Math.random() * 0.9 + 0.5) * (Math.random() < 0.5 ? -1 : 1),
+            angle: 0
+        });
+    }
+
     resizeCanvases();
     updateUI();
     tryPlayMusic(); 
 
+    // TESTI FLOATING DI INIZIO LIVELLO
     if(level === 1) {
-        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 4500);
+        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 2500);
         spawnFloatingText(`SKIN: ${currentSkin.name}`, W/2, H/2 + 20, 16, '#888', 2000);
     }
     else if(level === 7) spawnFloatingText("FINAL STAGE!", W/2, H/2 - 10, 35, '#ff0000', 3000);
     else if (level === 8) {
         spawnFloatingText("MISSION", W/2, H/2 - 15, 30, '#ff0000', 3000);
         spawnFloatingText("IMPOSSIBLE", W/2, H/2 + 5, 30, '#ff0000', 3000);
+    } 
+    else if (level === 9) {
+        spawnFloatingText("WARNING:", W/2, H/2 - 15, 30, '#ff0000', 3000);
+        spawnFloatingText("EVIL PLAYER DETECTED", W/2, H/2 + 10, 20, '#ffaa00', 3000);
     }
+    else if (level === 10) {
+        spawnFloatingText("BOSS BATTLE", W/2, H/2, 40, '#ff0000', 4000);
+    }
+
     requestAnimationFrame(gameLoop);
+    
+    // START AUTOMATICO SU MOBILE
+    if (window.innerWidth <= MOBILE_BREAKPOINT) {
+        setTimeout(() => {
+            if(player.dir.x === 0 && player.dir.y === 0) player.dir = {x: 0, y: -1};
+        }, 300);
+    }
 }
 
 function updateUI(){
@@ -346,6 +365,9 @@ function spawnParticles(x, y, type) {
         } else {
             pColor = Math.random() > 0.5 ? '#ff0055' : '#aa00ff'; 
         }
+    }
+    else if (type === 'evil_ball') {
+        pColor = '#ff0000'; // Particelle rosse per le palle nemiche
     }
     
     for(let i=0; i<count; i++){
@@ -430,20 +452,30 @@ function draw() {
             if(p.life <= 0) particles.splice(i, 1);
         }
         
+        // DISEGNO RAGNI
         for (let q of qixList) {
             entCtx.save(); entCtx.translate((q.x + 0.5) * scaleX, (q.y + 0.5) * scaleY);
             let angle = Math.atan2(q.vy, q.vx); entCtx.rotate(angle + Math.PI / 2);
-            
-            if(isDying) { 
-                entCtx.shadowColor = 'red'; entCtx.shadowBlur = 20; 
-            } else if (level >= 6) {
-                entCtx.shadowColor = '#ff0000'; entCtx.shadowBlur = 20; 
-            }
-
+            if(isDying) { entCtx.shadowColor = 'red'; entCtx.shadowBlur = 20; } 
+            else if (level >= 6) { entCtx.shadowColor = '#ff0000'; entCtx.shadowBlur = 20; }
             entCtx.font = `${Math.min(scaleX, scaleY) * 7.5}px serif`; entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
             entCtx.fillText('🕷️', 0, 0); entCtx.restore();
         }
 
+        // DISEGNO PALLE NEMICHE (Evil Players)
+        for (let ep of evilPlayers) {
+            entCtx.save(); entCtx.translate((ep.x + 0.5) * scaleX, (ep.y + 0.5) * scaleY);
+            ep.angle += 0.1; // Rotazione costante
+            entCtx.rotate(ep.angle);
+            // GLOW ROSSO "VELENOSO"
+            entCtx.shadowColor = '#ff0000'; entCtx.shadowBlur = 25; 
+            entCtx.font = `${Math.min(scaleX, scaleY) * 5.5}px sans-serif`; entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
+            // Stessa palla del player, ma il glow rosso la rende "cattiva"
+            entCtx.fillText('⚽', 0, 0); 
+            entCtx.restore();
+        }
+
+        // DISEGNO PLAYER
         if (isDying) playerAnimScale = Math.max(0, playerAnimScale - 0.1); else playerAnimScale = Math.min(1, playerAnimScale + 0.05); 
         if(playerAnimScale > 0.01) {
             entCtx.save(); entCtx.translate((player.x + 0.5) * scaleX, (player.y + 0.5) * scaleY);
@@ -480,12 +512,22 @@ function drawVictory() {
 function closeStixAndFill(){
     if(stixList.length===0) return;
     let visited = new Uint8Array(W*H); let stack = [];
+    
+    // I ragni contano come ostacoli per il riempimento
     for(let q of qixList) {
         let qixCellX = Math.floor(q.x); let qixCellY = Math.floor(q.y);
         if(inBounds(qixCellX,qixCellY) && grid[idx(qixCellX,qixCellY)]!==CELL_CLAIMED){
             stack.push({x:qixCellX,y:qixCellY}); visited[idx(qixCellX,qixCellY)] = 1;
         }
     }
+    // Anche le palle nemiche contano come ostacoli!
+    for(let ep of evilPlayers) {
+        let epX = Math.floor(ep.x); let epY = Math.floor(ep.y);
+        if(inBounds(epX,epY) && grid[idx(epX,epY)]!==CELL_CLAIMED){
+            stack.push({x:epX,y:epY}); visited[idx(epX,epY)] = 1;
+        }
+    }
+
     while(stack.length>0){
         const p = stack.pop(); const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
         for(const d of dirs){
@@ -497,7 +539,6 @@ function closeStixAndFill(){
     
     let filled = 0;
     
-    // NOTA: Qui continuiamo a usare destination-out per bucare la nebbia scura
     gridCtx.globalCompositeOperation = 'destination-out'; 
     gridCtx.beginPath();
     let rectSizeX = Math.ceil(scaleX);
@@ -528,15 +569,44 @@ function closeStixAndFill(){
 }
 
 function checkCollisions(){
+    // Collisioni con Ragni
     for (let q of qixList) {
         let qixCellX = Math.floor(q.x); let qixCellY = Math.floor(q.y);
         if(inBounds(qixCellX,qixCellY) && grid[idx(qixCellX,qixCellY)]===CELL_STIX){ triggerDeath(q.x, q.y); return; }
         if(player.drawing){ if(qixCellX===player.x && qixCellY===player.y){ triggerDeath(player.x, player.y); return; } }
     }
+    
+    // Collisioni con Evil Players (Distanza Euclidea)
+    for (let ep of evilPlayers) {
+        // Controllo distanza semplice
+        let dx = ep.x - player.x;
+        let dy = ep.y - player.y;
+        let distance = Math.sqrt(dx*dx + dy*dy);
+        
+        // Se si toccano (distanza < 1.5 celle)
+        if(distance < 1.5) {
+            triggerDeath(player.x, player.y);
+            return;
+        }
+        
+        // Se Evil Player tocca la linea STIX che stai disegnando
+        let epCellX = Math.floor(ep.x); let epCellY = Math.floor(ep.y);
+        if(inBounds(epCellX,epCellY) && grid[idx(epCellX,epCellY)]===CELL_STIX) {
+            triggerDeath(ep.x, ep.y);
+            return;
+        }
+    }
 }
 
 function triggerDeath(impactX, impactY) {
     if(isDying) return; 
+    
+    // --- GOD MODE CHECK ---
+    if (isGodMode) {
+        return; // Ignora la morte
+    }
+    // ----------------------
+
     isDying = true; playSound('hit'); addShake(20); spawnParticles(impactX, impactY, 'explosion');
     setTimeout(() => { resetAfterDeath(); }, 2000);
 }
@@ -550,7 +620,12 @@ function resetAfterDeath(){
     } else {
         stixList = []; player.drawing = false; player.dir = {x:0,y:0}; player.x = Math.floor(W/2); player.y = H-1;
         playerAnimScale = 0; 
-        let numSpiders = qixList.length; qixList = []; 
+        
+        // RESETTARE RAGNI
+        qixList = []; 
+        let numSpiders = 1;
+        if (level >= 8) numSpiders = 4; else if (level >= 7) numSpiders = 3; else if (level >= 5) numSpiders = 2; 
+
         for(let i=0; i<numSpiders; i++) {
             let startX = Math.floor(W * 0.3) + (i * 20); let startY = Math.floor(H * 0.3) + (i * 10);
             if(startX >= W-2) startX = W-10; if(startY >= H-2) startY = H-10;
@@ -561,21 +636,36 @@ function resetAfterDeath(){
             });
         }
         
-        // RIPRISTINO DELLE CELLE STIX A UNCLAIMED
+        // RESETTARE EVIL PLAYERS
+        evilPlayers = [];
+        let numEvilBalls = 0;
+        if (level === 9) numEvilBalls = 1;
+        if (level === 10) numEvilBalls = 2;
+
+        for (let i = 0; i < numEvilBalls; i++) {
+            let ex = Math.floor(W/2) + (Math.random() > 0.5 ? 40 : -40);
+            let ey = Math.floor(H/3);
+            evilPlayers.push({
+                x: ex, y: ey,
+                vx: (Math.random() * 0.9 + 0.5) * (Math.random() < 0.5 ? -1 : 1),
+                vy: (Math.random() * 0.9 + 0.5) * (Math.random() < 0.5 ? -1 : 1),
+                angle: 0
+            });
+        }
+        
         for(let i=0; i<grid.length; i++) {
             if(grid[i]===CELL_STIX) {
                 grid[i] = CELL_UNCLAIMED;
             }
         }
         
-        // MODIFICA: Ridisegniamo l'intero livello statico
         redrawStaticLayers();
-        
         flashList = [];
     }
 }
 
 function moveQix(){
+    // Muovi Ragni
     for (let q of qixList) {
         let nx = q.x + q.vx; let ny = q.y + q.vy;
         if(!inBounds(Math.floor(nx), Math.floor(q.y)) || grid[idx(Math.floor(nx), Math.floor(q.y))]===CELL_CLAIMED) q.vx *= -1;
@@ -584,6 +674,18 @@ function moveQix(){
         if(Math.random() < 0.02) { q.vx += (Math.random() - 0.5) * 1.5; q.vy += (Math.random() - 0.5) * 1.5; }
         const difficultyMultiplier = 1 + ((level - 1) * 0.1); const maxSpeed = 1.2 * difficultyMultiplier; 
         const s = Math.hypot(q.vx, q.vy); if(s > maxSpeed){ q.vx *= maxSpeed/s; q.vy *= maxSpeed/s; }
+    }
+    
+    // Muovi Evil Players (Stessa logica dei ragni)
+    for (let ep of evilPlayers) {
+        let nx = ep.x + ep.vx; let ny = ep.y + ep.vy;
+        if(!inBounds(Math.floor(nx), Math.floor(ep.y)) || grid[idx(Math.floor(nx), Math.floor(ep.y))]===CELL_CLAIMED) ep.vx *= -1;
+        if(!inBounds(Math.floor(ep.x), Math.floor(ny)) || grid[idx(Math.floor(ep.x), Math.floor(ny))]===CELL_CLAIMED) ep.vy *= -1;
+        ep.x += ep.vx; ep.y += ep.vy; 
+        // spawnParticles(ep.x, ep.y, 'evil_ball'); // Opzionale: troppe particelle potrebbero rallentare
+        if(Math.random() < 0.02) { ep.vx += (Math.random() - 0.5) * 1.5; ep.vy += (Math.random() - 0.5) * 1.5; }
+        const maxSpeed = 1.4; // Un po' più veloci dei ragni
+        const s = Math.hypot(ep.vx, ep.vy); if(s > maxSpeed){ ep.vx *= maxSpeed/s; ep.vy *= maxSpeed/s; }
     }
 }
 
@@ -655,6 +757,16 @@ async function gestisciFinePartita(vittoria) {
 
 async function checkAndShowLeaderboard() {
     leaderboardList.innerHTML = "<li>Caricamento dati...</li>"; inputSection.classList.add('hidden'); 
+    
+    // --- CHEAT CHECK ---
+    if (cheatDetected) {
+        leaderboardList.innerHTML = "<li>Punteggio non valido per la classifica (Cheat).</li>";
+        let { data: classifica } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10);
+        disegnaLista(classifica);
+        return; // Esce dalla funzione, impedendo l'accesso al salvataggio
+    }
+    // -------------------
+
     let { data: classifica, error } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10);
     
     if (error) { 
@@ -680,6 +792,9 @@ function disegnaLista(data) {
 }
 
 window.salvaPunteggio = async function() {
+    // Doppio controllo di sicurezza
+    if (cheatDetected) { alert("Non puoi salvare il punteggio usando i trucchi!"); return; }
+
     const nome = playerNameInput.value.trim();
     if (nome.length === 0 || nome.length > 8) { alert("Inserisci un nome valido (1-8 caratteri)"); return; }
     const btn = document.getElementById('btn-save'); if(btn) { btn.disabled = true; btn.innerText = "Salvataggio..."; }
@@ -701,8 +816,27 @@ window.riavviaGioco = function() { window.location.reload(); }
 
 const keysDown = new Set();
 window.addEventListener('keydown', (e)=>{
-    if(e.repeat) return; if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){ keysDown.add(e.key); tryPlayMusic(); if (audioCtx.state === 'suspended') { audioCtx.resume(); } setPlayerDirFromKeys(); e.preventDefault(); }
+    if(e.repeat) return; 
+
+    // --- CHEAT DETECTION (IDDQD) ---
+    // Aggiunge il tasto al buffer
+    cheatBuffer += e.key.toLowerCase();
+    // Tieni solo gli ultimi 5 caratteri
+    if (cheatBuffer.length > 5) {
+        cheatBuffer = cheatBuffer.slice(-5);
+    }
+    // Controllo sequenza
+    if (cheatBuffer === "iddqd" && !isGodMode) {
+        isGodMode = true;
+        cheatDetected = true;
+        spawnFloatingText("GOD MODE ACTIVE", player.x, player.y, 30, '#ffff00', 4000);
+        console.log("God Mode Activated!");
+    }
+    // -------------------------------
+
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){ keysDown.add(e.key); tryPlayMusic(); if (audioCtx.state === 'suspended') { audioCtx.resume(); } setPlayerDirFromKeys(); e.preventDefault(); }
 });
+
 window.addEventListener('keyup', (e)=>{ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){ keysDown.delete(e.key); setPlayerDirFromKeys(); e.preventDefault(); } });
 function setPlayerDirFromKeys(){
     const order = ['ArrowUp','ArrowRight','ArrowDown','ArrowLeft']; let found = {x:0,y:0};
@@ -711,11 +845,45 @@ function setPlayerDirFromKeys(){
 }
 
 let touchStartX = 0; let touchStartY = 0;
-function isButton(e) { return e.target.id === 'next-level-btn' || e.target.closest('#next-level-btn') || e.target.closest('#game-over-screen'); }
+function isButton(e) { return e.target.id === 'next-level-btn' || e.target.closest('#next-level-btn') || e.target.closest('#game-over-screen') || e.target.closest('.turn-btn'); }
 gameWrapper.addEventListener('touchstart', e => { if (isButton(e)) return; tryPlayMusic(); if (audioCtx.state === 'suspended') { audioCtx.resume(); } touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY; e.preventDefault(); }, {passive: false});
 gameWrapper.addEventListener('touchmove', e => { if (isButton(e)) return; e.preventDefault(); }, {passive: false});
 gameWrapper.addEventListener('touchend', e => { if (isButton(e)) return; e.preventDefault(); let touchEndX = e.changedTouches[0].screenX; let touchEndY = e.changedTouches[0].screenY; handleSwipe(touchEndX - touchStartX, touchEndY - touchStartY); }, {passive: false});
 function handleSwipe(dx, dy) { if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return; if (Math.abs(dx) > Math.abs(dy)) player.dir = { x: dx > 0 ? 1 : -1, y: 0 }; else player.dir = { x: 0, y: dy > 0 ? 1 : -1 }; }
+
+// --- GESTIONE TURN BUTTONS MOBILE ---
+const turnLeftBtn = document.getElementById('btn-turn-left');
+const turnRightBtn = document.getElementById('btn-turn-right');
+
+function handleMobileTurn(direction) {
+    tryPlayMusic();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const oldDir = player.dir;
+    let newDir = {x: 0, y: 0};
+
+    if (oldDir.x === 0 && oldDir.y === 0) {
+         newDir = {x: 0, y: -1}; 
+    } else {
+        if (direction === 'right') { // ORARIO (CW)
+            newDir = { x: -oldDir.y, y: oldDir.x };
+        } else { // ANTIORARIO (CCW)
+            newDir = { x: oldDir.y, y: -oldDir.x };
+        }
+    }
+    player.dir = newDir;
+}
+
+if (turnLeftBtn) {
+    const action = (e) => { e.preventDefault(); handleMobileTurn('left'); };
+    turnLeftBtn.addEventListener('touchstart', action, { passive: false });
+    turnLeftBtn.addEventListener('mousedown', action);
+}
+if (turnRightBtn) {
+    const action = (e) => { e.preventDefault(); handleMobileTurn('right'); };
+    turnRightBtn.addEventListener('touchstart', action, { passive: false });
+    turnRightBtn.addEventListener('mousedown', action);
+}
 
 // --- START & PRELOADING ---
 const loadingScreen = document.getElementById('loading-screen');
