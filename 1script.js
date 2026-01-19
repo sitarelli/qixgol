@@ -17,7 +17,7 @@ const MAX_TIME_BONUS = 500;
 const POINTS_PER_FILL = 10;     
 
 // Configurazione ZOOM Mobile
-const MOBILE_ZOOM_LEVEL = 1.35; // 35% di zoom
+const MOBILE_ZOOM_LEVEL = 1.25; // 25% di zoom
 const MOBILE_BREAKPOINT = 768;
 
 const CELL_UNCLAIMED = 0; const CELL_CLAIMED = 1; const CELL_STIX = 2;
@@ -736,4 +736,5 @@ if(startBtn) {
         setTimeout(() => { if(loadingScreen) loadingScreen.style.display = 'none'; startGame(); }, 500);
     });
 }
+
 window.addEventListener('resize', resizeCanvases);
