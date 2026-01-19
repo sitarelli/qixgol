@@ -306,7 +306,7 @@ function initGame(lvl, resetLives = true){
 
     // TESTI FLOATING DI INIZIO LIVELLO
     if(level === 1) {
-        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 2500);
+        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 3500);
         spawnFloatingText(`SKIN: ${currentSkin.name}`, W/2, H/2 + 20, 16, '#888', 2000);
     }
     else if(level === 7) spawnFloatingText("FINAL STAGE!", W/2, H/2 - 10, 35, '#ff0000', 3000);
@@ -933,4 +933,5 @@ if(startBtn) {
         setTimeout(() => { if(loadingScreen) loadingScreen.style.display = 'none'; startGame(); }, 500);
     });
 }
+
 window.addEventListener('resize', resizeCanvases);
