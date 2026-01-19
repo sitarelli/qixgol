@@ -1,4 +1,4 @@
-/* script.js - v3.2: JPG SUPPORT & IOS DARK FIX */
+/* script.js - v3.3: KILL ENEMIES MECHANIC */
 
 // 1. SUPABASE
 const SUPABASE_URL = 'https://rhttiiwsouqnlwoqpcvb.supabase.co';
@@ -15,6 +15,8 @@ const MAX_LEVEL = 10;
 const POINTS_PER_LEVEL = 1000; 
 const MAX_TIME_BONUS = 500;     
 const POINTS_PER_FILL = 10;     
+const POINTS_KILL_SPIDER = 500; // Bonus uccisione ragno
+const POINTS_KILL_EVIL = 1000;  // Bonus uccisione palla nemica
 
 // Configurazione ZOOM Mobile
 const MOBILE_ZOOM_LEVEL = 1.15; 
@@ -95,11 +97,11 @@ let entCtx = entityCanvas.getContext('2d');
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx = new AudioContext();
 
-// --- PRELOADING (MODIFICATO PER JPG) ---
+// --- PRELOADING ---
 function preloadLevelImages() {
     for (let i = 1; i <= MAX_LEVEL; i++) {
         const img = new Image();
-        img.src = `img${i}.jpg`; // ORA CERCA JPG
+        img.src = `img${i}.jpg`; 
         levelImages[i] = img;
     }
 }
@@ -125,6 +127,11 @@ function playSound(type) {
         osc.type = 'square'; osc.frequency.setValueAtTime(500, now); osc.frequency.setValueAtTime(600, now + 0.1); osc.frequency.setValueAtTime(800, now + 0.2);
         gainNode.gain.setValueAtTime(0.2, now); gainNode.gain.linearRampToValueAtTime(0, now + 0.6);
         osc.start(now); osc.stop(now + 0.6);
+    } else if (type === 'kill') {
+        // Suono specifico per uccisione nemico (più grave e breve)
+        osc.type = 'square'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(50, now + 0.1);
+        gainNode.gain.setValueAtTime(0.5, now); gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
+        osc.start(now); osc.stop(now + 0.2);
     }
 }
 
@@ -148,30 +155,20 @@ if(musicBtn) {
     });
 }
 
-// --- GRAFICA STATIC LAYERS (FIX IOS/MAC) ---
+// --- GRAFICA STATIC LAYERS ---
 function redrawStaticLayers() {
     if (!currentBgImage) return;
     
-    // 1. Disegna l'immagine FULL COLOR sul canvas di base (quello che compare quando vinci l'area)
     imgCtx.drawImage(currentBgImage, 0, 0, imageCanvas.width, imageCanvas.height);
-    
-    // 2. Prepara il GRID CANVAS (il livello "nebbia" sopra)
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
     
-    // --- FIX PER MAC/IOS ---
-    // Invece di usare filter (che Safari ignora), disegniamo l'immagine e poi un rettangolo nero sopra
-    
-    // A. Disegna immagine normale
+    // FIX MAC/IOS: Immagine + Velo nero
     gridCtx.drawImage(currentBgImage, 0, 0, gridCanvas.width, gridCanvas.height);
-    
-    // B. Applica un velo nero all'85% sopra l'immagine
     gridCtx.save();
     gridCtx.fillStyle = 'rgba(0, 0, 0, 0.85)'; 
     gridCtx.fillRect(0, 0, gridCanvas.width, gridCanvas.height);
     gridCtx.restore();
-    // -----------------------
 
-    // 3. "Buca" la nebbia scura dove abbiamo già conquistato
     let rectSizeX = Math.ceil(scaleX);
     let rectSizeY = Math.ceil(scaleY);
 
@@ -218,7 +215,6 @@ function spawnFloatingText(text, x, y, size = 24, color = 'white', duration = 35
 function pickRandomSkin() {
     const randomIndex = Math.floor(Math.random() * SKINS.length);
     currentSkin = SKINS[randomIndex];
-    console.log("Skin selezionata:", currentSkin.name);
 }
 
 function generateMissionName() {
@@ -231,7 +227,6 @@ function initGame(lvl, resetLives = true){
     if(gameOverScreen) gameOverScreen.classList.add('hidden');
     level = lvl;
 
-    // --- LOGICA CAMBIO MUSICA ---
     if (bgMusic) {
         let nuovaMusica = (level >= 5) ? 'part2.mp3' : 'soundtrack.mp3';
         if (!bgMusic.src.includes(nuovaMusica)) {
@@ -247,7 +242,7 @@ function initGame(lvl, resetLives = true){
         lives = START_LIVES; 
         score = 0; 
         pickRandomSkin(); 
-        isGodMode = false; // Reset God Mode a nuova partita
+        isGodMode = false;
         cheatDetected = false; 
     }
     
@@ -261,13 +256,11 @@ function initGame(lvl, resetLives = true){
 
     if(cameraLayer) cameraLayer.style.transform = 'translate(0px, 0px) scale(1)';
 
-    // CARICAMENTO IMMAGINI JPG
-    let imgSource = `img${level}.jpg`; // CAMBIATO IN JPG
+    let imgSource = `img${level}.jpg`;
     currentBgImage = new Image();
     currentBgImage.src = imgSource;
     currentBgImage.onload = () => { redrawStaticLayers(); };
     currentBgImage.onerror = () => { 
-        // Fallback nel caso estremo serva png
         currentBgImage.src = `img${level}.png`; 
         currentBgImage.onload = () => redrawStaticLayers();
     };
@@ -278,14 +271,13 @@ function initGame(lvl, resetLives = true){
     player.drawing = false; 
     player.dir = {x:0,y:0}; 
     
-    // --- GENERAZIONE NEMICI (RAGNI & PALLE NEMICHE) ---
+    // GENERAZIONE NEMICI
     qixList = [];
     evilPlayers = []; 
 
     let numSpiders = 1;
     if (level >= 8) numSpiders = 4; else if (level >= 7) numSpiders = 3; else if (level >= 5) numSpiders = 2; 
 
-    // Generazione Ragni
     for(let i=0; i<numSpiders; i++) {
         let startX = Math.floor(W * 0.3) + (i * 20);
         let startY = Math.floor(H * 0.3) + (i * 10);
@@ -297,7 +289,6 @@ function initGame(lvl, resetLives = true){
         });
     }
 
-    // Generazione Palle Nemiche (Level 9 e 10)
     let numEvilBalls = 0;
     if (level === 9) numEvilBalls = 1;
     if (level === 10) numEvilBalls = 2;
@@ -317,16 +308,11 @@ function initGame(lvl, resetLives = true){
     updateUI();
     tryPlayMusic(); 
 
-    // TESTI FLOATING DI INIZIO LIVELLO
     if(level === 1) {
-        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 2500);
+        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 3500);
         spawnFloatingText(`SKIN: ${currentSkin.name}`, W/2, H/2 + 20, 16, '#888', 2000);
     }
     else if(level === 7) spawnFloatingText("FINAL STAGE!", W/2, H/2 - 10, 35, '#ff0000', 3000);
-    else if (level === 8) {
-        spawnFloatingText("MISSION", W/2, H/2 - 15, 30, '#ff0000', 3000);
-        spawnFloatingText("IMPOSSIBLE", W/2, H/2 + 5, 30, '#ff0000', 3000);
-    } 
     else if (level === 9) {
         spawnFloatingText("WARNING:", W/2, H/2 - 15, 30, '#ff0000', 3000);
         spawnFloatingText("EVIL PLAYER DETECTED", W/2, H/2 + 10, 20, '#ffaa00', 3000);
@@ -337,7 +323,6 @@ function initGame(lvl, resetLives = true){
 
     requestAnimationFrame(gameLoop);
     
-    // START AUTOMATICO SU MOBILE
     if (window.innerWidth <= MOBILE_BREAKPOINT) {
         setTimeout(() => {
             if(player.dir.x === 0 && player.dir.y === 0) player.dir = {x: 0, y: -1};
@@ -373,15 +358,10 @@ function spawnParticles(x, y, type) {
     else if (type === 'fill_spark') { count = 4; pColor = currentSkin.trail; }
     else if (type === 'player') { count = 1; pColor = Math.random() > 0.5 ? currentSkin.primary : currentSkin.secondary; }
     else if (type === 'spider') {
-        if(level >= 6) {
-            pColor = Math.random() > 0.5 ? '#ff0000' : '#880000'; 
-        } else {
-            pColor = Math.random() > 0.5 ? '#ff0055' : '#aa00ff'; 
-        }
+        if(level >= 6) { pColor = Math.random() > 0.5 ? '#ff0000' : '#880000'; } 
+        else { pColor = Math.random() > 0.5 ? '#ff0055' : '#aa00ff'; }
     }
-    else if (type === 'evil_ball') {
-        pColor = '#ff0000'; 
-    }
+    else if (type === 'evil_ball') { pColor = '#ff0000'; }
     
     for(let i=0; i<count; i++){
         let p = {
@@ -400,25 +380,16 @@ function updateCamera() {
         cameraLayer.style.transform = 'translate(0px, 0px) scale(1)';
         return;
     }
-
     const playerPixelX = (player.x + 0.5) * scaleX;
     const playerPixelY = (player.y + 0.5) * scaleY;
-
     const viewW = gameWrapper.clientWidth;
     const viewH = gameWrapper.clientHeight;
-
     let transX = (viewW / 2) - (playerPixelX * MOBILE_ZOOM_LEVEL);
     let transY = (viewH / 2) - (playerPixelY * MOBILE_ZOOM_LEVEL);
-
-    const maxTransX = 0;
-    const minTransX = viewW - (viewW * MOBILE_ZOOM_LEVEL);
-    
-    const maxTransY = 0;
-    const minTransY = viewH - (viewH * MOBILE_ZOOM_LEVEL);
-
+    const maxTransX = 0; const minTransX = viewW - (viewW * MOBILE_ZOOM_LEVEL);
+    const maxTransY = 0; const minTransY = viewH - (viewH * MOBILE_ZOOM_LEVEL);
     transX = Math.min(maxTransX, Math.max(transX, minTransX));
     transY = Math.min(maxTransY, Math.max(transY, minTransY));
-
     cameraLayer.style.transform = `translate(${transX}px, ${transY}px) scale(${MOBILE_ZOOM_LEVEL})`;
 }
 
@@ -442,8 +413,6 @@ function draw() {
         entCtx.fillStyle = pulse; entCtx.beginPath();
         for(let p of stixList){ entCtx.rect(Math.floor(p.x*scaleX), Math.floor(p.y*scaleY), rectSizeX, rectSizeY); }
         entCtx.fill(); 
-        entCtx.shadowColor = currentSkin.trail; entCtx.shadowBlur = 10; 
-        entCtx.shadowBlur = 0; 
     }
 
     if(flashList.length > 0) {
@@ -465,7 +434,6 @@ function draw() {
             if(p.life <= 0) particles.splice(i, 1);
         }
         
-        // DISEGNO RAGNI
         for (let q of qixList) {
             entCtx.save(); entCtx.translate((q.x + 0.5) * scaleX, (q.y + 0.5) * scaleY);
             let angle = Math.atan2(q.vy, q.vx); entCtx.rotate(angle + Math.PI / 2);
@@ -475,19 +443,16 @@ function draw() {
             entCtx.fillText('🕷️', 0, 0); entCtx.restore();
         }
 
-        // DISEGNO PALLE NEMICHE (Evil Players)
         for (let ep of evilPlayers) {
             entCtx.save(); entCtx.translate((ep.x + 0.5) * scaleX, (ep.y + 0.5) * scaleY);
-            ep.angle += 0.1; // Rotazione costante
+            ep.angle += 0.1; 
             entCtx.rotate(ep.angle);
-            // GLOW ROSSO "VELENOSO"
             entCtx.shadowColor = '#ff0000'; entCtx.shadowBlur = 25; 
             entCtx.font = `${Math.min(scaleX, scaleY) * 5.5}px sans-serif`; entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
             entCtx.fillText('⚽', 0, 0); 
             entCtx.restore();
         }
 
-        // DISEGNO PLAYER
         if (isDying) playerAnimScale = Math.max(0, playerAnimScale - 0.1); else playerAnimScale = Math.min(1, playerAnimScale + 0.05); 
         if(playerAnimScale > 0.01) {
             entCtx.save(); entCtx.translate((player.x + 0.5) * scaleX, (player.y + 0.5) * scaleY);
@@ -521,50 +486,75 @@ function drawVictory() {
     entCtx.fillText("YOU WIN!!", imageCanvas.width/2, imageCanvas.height/2); entCtx.restore();
 }
 
+// --- NUOVO ALGORITMO DI RIEMPIMENTO CON UCCISIONE NEMICI ---
 function closeStixAndFill(){
     if(stixList.length===0) return;
-    let visited = new Uint8Array(W*H); let stack = [];
-    
-    // I ragni contano come ostacoli per il riempimento
-    for(let q of qixList) {
-        let qixCellX = Math.floor(q.x); let qixCellY = Math.floor(q.y);
-        if(inBounds(qixCellX,qixCellY) && grid[idx(qixCellX,qixCellY)]!==CELL_CLAIMED){
-            stack.push({x:qixCellX,y:qixCellY}); visited[idx(qixCellX,qixCellY)] = 1;
-        }
+
+    // 1. Marca temporaneamente il bordo appena creato come "Muro" (CLAIMED)
+    for (let p of stixList) {
+        grid[idx(p.x, p.y)] = CELL_CLAIMED;
     }
-    // Anche le palle nemiche contano come ostacoli!
-    for(let ep of evilPlayers) {
-        let epX = Math.floor(ep.x); let epY = Math.floor(ep.y);
-        if(inBounds(epX,epY) && grid[idx(epX,epY)]!==CELL_CLAIMED){
-            stack.push({x:epX,y:epY}); visited[idx(epX,epY)] = 1;
+
+    // 2. Trova tutte le aree connesse di spazio vuoto (Flood Fill su UNCLAIMED)
+    let visited = new Uint8Array(W * H);
+    let areas = [];
+
+    for (let i = 0; i < W * H; i++) {
+        if (grid[i] === CELL_UNCLAIMED && !visited[i]) {
+            let currentArea = [];
+            let stack = [i];
+            visited[i] = 1;
+
+            while (stack.length > 0) {
+                let curr = stack.pop();
+                currentArea.push(curr);
+                
+                let cx = curr % W;
+                let cy = Math.floor(curr / W);
+
+                // Controlla vicini (Up, Down, Left, Right)
+                const neighbors = [];
+                if (cx > 0) neighbors.push(curr - 1);
+                if (cx < W - 1) neighbors.push(curr + 1);
+                if (cy > 0) neighbors.push(curr - W);
+                if (cy < H - 1) neighbors.push(curr + W);
+
+                for (let n of neighbors) {
+                    if (grid[n] === CELL_UNCLAIMED && !visited[n]) {
+                        visited[n] = 1;
+                        stack.push(n);
+                    }
+                }
+            }
+            areas.push(currentArea);
         }
     }
 
-    while(stack.length>0){
-        const p = stack.pop(); const dirs = [{x:1,y:0},{x:-1,y:0},{x:0,y:1},{x:0,y:-1}];
-        for(const d of dirs){
-            const nx = p.x + d.x; const ny = p.y + d.y; if(!inBounds(nx,ny)) continue; 
-            const idn = idx(nx,ny); if(visited[idn] || grid[idn]===CELL_CLAIMED || grid[idn]===CELL_STIX) continue; 
-            visited[idn]=1; stack.push({x:nx,y:ny});
-        }
-    }
-    
-    let filled = 0;
-    
-    gridCtx.globalCompositeOperation = 'destination-out'; 
-    gridCtx.beginPath();
+    if (areas.length === 0) return 0; // Non dovrebbe succedere
+
+    // 3. Determina quale area mantenere vuota (La più grande)
+    // Ordiniamo le aree dalla più grande alla più piccola
+    areas.sort((a, b) => b.length - a.length);
+
+    let mainArea = areas[0]; // La più grande resta il "campo di gioco"
+    let capturedAreas = areas.slice(1); // Tutte le altre (più piccole) vengono conquistate
+
+    let filledCount = 0;
     let rectSizeX = Math.ceil(scaleX);
     let rectSizeY = Math.ceil(scaleY);
-    
-    for(let i=0; i<grid.length; i++){
-        if(grid[i]===CELL_UNCLAIMED && !visited[i]){ 
-            grid[i] = CELL_CLAIMED; filled++; flashList.push({idx: i, timer: 15}); 
-            let x = i % W; let y = Math.floor(i / W);
-            gridCtx.rect(Math.floor(x*scaleX), Math.floor(y*scaleY), rectSizeX, rectSizeY);
-        }
-        if(grid[i]===CELL_STIX){ 
-            grid[i] = CELL_CLAIMED; flashList.push({idx: i, timer: 15}); 
-            let x = i % W; let y = Math.floor(i / W);
+
+    // 4. Riempi le aree conquistate
+    gridCtx.globalCompositeOperation = 'destination-out';
+    gridCtx.beginPath();
+
+    for (let area of capturedAreas) {
+        for (let idxVal of area) {
+            grid[idxVal] = CELL_CLAIMED;
+            filledCount++;
+            flashList.push({idx: idxVal, timer: 15});
+
+            let x = idxVal % W;
+            let y = Math.floor(idxVal / W);
             gridCtx.rect(Math.floor(x*scaleX), Math.floor(y*scaleY), rectSizeX, rectSizeY);
         }
     }
@@ -572,23 +562,67 @@ function closeStixAndFill(){
     gridCtx.globalCompositeOperation = 'source-over'; 
 
     stixList = []; 
-    if(filled > 0) {
-        playSound('fill'); score += POINTS_PER_FILL; 
-        let newPercent = getClaimPercent(); spawnFloatingText(Math.floor(newPercent) + "%", player.x, player.y);
-        currentPercent = newPercent; if(filled > 50) spawnParticles(player.x, player.y, 'fill_spark');
+
+    // 5. CONTROLLO UCCISIONE NEMICI (Se sono finiti in un'area CLAIMED)
+    let killed = false;
+
+    // Ragni
+    for (let i = qixList.length - 1; i >= 0; i--) {
+        let q = qixList[i];
+        let qIdx = idx(Math.floor(q.x), Math.floor(q.y));
+        if (grid[qIdx] === CELL_CLAIMED) {
+            // Ucciso!
+            spawnParticles(q.x, q.y, 'explosion');
+            playSound('kill'); 
+            qixList.splice(i, 1);
+            score += POINTS_KILL_SPIDER;
+            spawnFloatingText("ENEMY KILLED!", q.x, q.y, 20, '#ff0000');
+            killed = true;
+        }
     }
-    updateUI(); return filled;
+
+    // Palle Nemiche
+    for (let i = evilPlayers.length - 1; i >= 0; i--) {
+        let ep = evilPlayers[i];
+        let epIdx = idx(Math.floor(ep.x), Math.floor(ep.y));
+        if (grid[epIdx] === CELL_CLAIMED) {
+            // Ucciso!
+            spawnParticles(ep.x, ep.y, 'explosion');
+            playSound('kill');
+            evilPlayers.splice(i, 1);
+            score += POINTS_KILL_EVIL;
+            spawnFloatingText("RIVAL ELIMINATED!", ep.x, ep.y, 20, '#ff0000');
+            killed = true;
+        }
+    }
+
+    // Feedback sonoro e visivo riempimento
+    if(filledCount > 0) {
+        if (!killed) playSound('fill'); // Suona 'fill' solo se non c'è stato 'kill'
+        score += POINTS_PER_FILL; 
+        let newPercent = getClaimPercent(); 
+        spawnFloatingText(Math.floor(newPercent) + "%", player.x, player.y);
+        currentPercent = newPercent; 
+        if(filledCount > 50) spawnParticles(player.x, player.y, 'fill_spark');
+    }
+
+    updateUI(); 
+
+    // 6. CONTROLLO VITTORIA: Percentuale OPPURE Nemici azzerati
+    if (getClaimPercent() >= WIN_PERCENT || (qixList.length === 0 && evilPlayers.length === 0)) { 
+        winLevel(); 
+    }
+
+    return filledCount;
 }
 
 function checkCollisions(){
-    // Collisioni con Ragni
     for (let q of qixList) {
         let qixCellX = Math.floor(q.x); let qixCellY = Math.floor(q.y);
         if(inBounds(qixCellX,qixCellY) && grid[idx(qixCellX,qixCellY)]===CELL_STIX){ triggerDeath(q.x, q.y); return; }
         if(player.drawing){ if(qixCellX===player.x && qixCellY===player.y){ triggerDeath(player.x, player.y); return; } }
     }
     
-    // Collisioni con Evil Players (Distanza Euclidea)
     for (let ep of evilPlayers) {
         let dx = ep.x - player.x;
         let dy = ep.y - player.y;
@@ -609,11 +643,7 @@ function checkCollisions(){
 
 function triggerDeath(impactX, impactY) {
     if(isDying) return; 
-    
-    // --- GOD MODE CHECK ---
-    if (isGodMode) {
-        return; 
-    }
+    if (isGodMode) return; 
 
     isDying = true; playSound('hit'); addShake(20); spawnParticles(impactX, impactY, 'explosion');
     setTimeout(() => { resetAfterDeath(); }, 2000);
@@ -629,6 +659,7 @@ function resetAfterDeath(){
         stixList = []; player.drawing = false; player.dir = {x:0,y:0}; player.x = Math.floor(W/2); player.y = H-1;
         playerAnimScale = 0; 
         
+        // RESETTARE RAGNI (Ripristina lo stato iniziale del livello)
         qixList = []; 
         let numSpiders = 1;
         if (level >= 8) numSpiders = 4; else if (level >= 7) numSpiders = 3; else if (level >= 5) numSpiders = 2; 
@@ -761,7 +792,6 @@ async function gestisciFinePartita(vittoria) {
 async function checkAndShowLeaderboard() {
     leaderboardList.innerHTML = "<li>Caricamento dati...</li>"; inputSection.classList.add('hidden'); 
     
-    // --- CHEAT CHECK ---
     if (cheatDetected) {
         leaderboardList.innerHTML = "<li>Punteggio non valido per la classifica (Cheat).</li>";
         let { data: classifica } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10);
@@ -847,7 +877,6 @@ gameWrapper.addEventListener('touchmove', e => { if (isButton(e)) return; e.prev
 gameWrapper.addEventListener('touchend', e => { if (isButton(e)) return; e.preventDefault(); let touchEndX = e.changedTouches[0].screenX; let touchEndY = e.changedTouches[0].screenY; handleSwipe(touchEndX - touchStartX, touchEndY - touchStartY); }, {passive: false});
 function handleSwipe(dx, dy) { if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return; if (Math.abs(dx) > Math.abs(dy)) player.dir = { x: dx > 0 ? 1 : -1, y: 0 }; else player.dir = { x: 0, y: dy > 0 ? 1 : -1 }; }
 
-// --- GESTIONE TURN BUTTONS MOBILE ---
 const turnLeftBtn = document.getElementById('btn-turn-left');
 const turnRightBtn = document.getElementById('btn-turn-right');
 
@@ -881,7 +910,6 @@ if (turnRightBtn) {
     turnRightBtn.addEventListener('mousedown', action);
 }
 
-// --- START & PRELOADING ---
 const loadingScreen = document.getElementById('loading-screen');
 const loadingBar = document.getElementById('loading-bar');
 const loadingText = document.getElementById('loading-text');
@@ -892,7 +920,6 @@ function startGame() {
     resizeCanvases(); 
     initGame(1, true); 
     
-    // FIX MOVIMENTO: Imposto la direzione DOPO l'initGame
     setTimeout(() => {
         player.dir = {x: 0, y: -1}; 
         if (bgMusic) { bgMusic.play().catch(e => console.log("Audio ancora bloccato")); }
@@ -901,7 +928,6 @@ function startGame() {
     setTimeout(resizeCanvases, 150);
 }
 
-// PRELOAD IMAGES
 preloadLevelImages(); 
 
 let loadProgress = 0;
