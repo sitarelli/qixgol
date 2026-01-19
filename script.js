@@ -218,6 +218,26 @@ function generateMissionName() {
 function initGame(lvl, resetLives = true){
     if(gameOverScreen) gameOverScreen.classList.add('hidden');
     level = lvl;
+
+
+    // --- NUOVA LOGICA CAMBIO MUSICA ---
+    if (bgMusic) {
+        // Definiamo quale file deve suonare
+        let nuovaMusica = (level >= 5) ? 'part2.mp3' : 'soundtrack.mp3';
+        
+        // Cambiamo src solo se è diverso da quello attuale per non far ripartire la musica da zero inutilmente
+        if (!bgMusic.src.includes(nuovaMusica)) {
+            bgMusic.src = nuovaMusica;
+            bgMusic.load(); // Carica il nuovo file
+            if (isMusicOn) {
+                bgMusic.play().catch(e => console.log("Errore riproduzione musica:", e));
+            }
+        }
+    }
+    // ----------------------------------
+
+   
+
     if (resetLives) { 
         lives = START_LIVES; 
         score = 0; 
