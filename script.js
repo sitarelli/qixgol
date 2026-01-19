@@ -1,4 +1,4 @@
-/* script.js - v3.1: GOD MODE & EVIL PLAYERS */
+/* script.js - v3.2: JPG SUPPORT & IOS DARK FIX */
 
 // 1. SUPABASE
 const SUPABASE_URL = 'https://rhttiiwsouqnlwoqpcvb.supabase.co';
@@ -10,7 +10,7 @@ const W = 160; const H = 160;
 const PLAYER_SPEED_CELLS = 1; 
 const WIN_PERCENT = 75;
 const START_LIVES = 3;
-const MAX_LEVEL = 10; // AUMENTATO A 10
+const MAX_LEVEL = 10; 
 
 const POINTS_PER_LEVEL = 1000; 
 const MAX_TIME_BONUS = 500;     
@@ -80,12 +80,12 @@ let particles = [];
 let floatingTexts = []; 
 let player = { x: Math.floor(W/2), y: H-1, drawing: false, dir: {x:0,y:0} };
 let qixList = []; 
-let evilPlayers = []; // NUOVO: Array per le palle nemiche
+let evilPlayers = []; 
 
 // VARIABILI GOD MODE & CHEAT
 let cheatBuffer = "";
 let isGodMode = false;
-let cheatDetected = false; // Se true, blocca il salvataggio in classifica
+let cheatDetected = false; 
 
 // Contexts
 let imgCtx = imageCanvas.getContext('2d', { alpha: false }); 
@@ -95,11 +95,11 @@ let entCtx = entityCanvas.getContext('2d');
 const AudioContext = window.AudioContext || window.webkitAudioContext;
 let audioCtx = new AudioContext();
 
-// --- PRELOADING ---
+// --- PRELOADING (MODIFICATO PER JPG) ---
 function preloadLevelImages() {
     for (let i = 1; i <= MAX_LEVEL; i++) {
         const img = new Image();
-        img.src = `img${i}.jpg`;
+        img.src = `img${i}.jpg`; // ORA CERCA JPG
         levelImages[i] = img;
     }
 }
@@ -148,18 +148,30 @@ if(musicBtn) {
     });
 }
 
-// --- GRAFICA STATIC LAYERS ---
+// --- GRAFICA STATIC LAYERS (FIX IOS/MAC) ---
 function redrawStaticLayers() {
     if (!currentBgImage) return;
+    
+    // 1. Disegna l'immagine FULL COLOR sul canvas di base (quello che compare quando vinci l'area)
     imgCtx.drawImage(currentBgImage, 0, 0, imageCanvas.width, imageCanvas.height);
     
-    // ANTEPRIMA SCURA
+    // 2. Prepara il GRID CANVAS (il livello "nebbia" sopra)
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-    gridCtx.save();
-    gridCtx.filter = 'grayscale(100%) brightness(20%)'; 
+    
+    // --- FIX PER MAC/IOS ---
+    // Invece di usare filter (che Safari ignora), disegniamo l'immagine e poi un rettangolo nero sopra
+    
+    // A. Disegna immagine normale
     gridCtx.drawImage(currentBgImage, 0, 0, gridCanvas.width, gridCanvas.height);
+    
+    // B. Applica un velo nero all'85% sopra l'immagine
+    gridCtx.save();
+    gridCtx.fillStyle = 'rgba(0, 0, 0, 0.85)'; 
+    gridCtx.fillRect(0, 0, gridCanvas.width, gridCanvas.height);
     gridCtx.restore();
+    // -----------------------
 
+    // 3. "Buca" la nebbia scura dove abbiamo già conquistato
     let rectSizeX = Math.ceil(scaleX);
     let rectSizeY = Math.ceil(scaleY);
 
@@ -199,7 +211,7 @@ function initGrid(){
     redrawStaticLayers();
 }
 
-function spawnFloatingText(text, x, y, size = 24, color = 'white', duration = 4500) {
+function spawnFloatingText(text, x, y, size = 24, color = 'white', duration = 3500) {
     floatingTexts.push({text, x, y, timer: duration, opacity: 1.0, size, color});
 }
 
@@ -249,12 +261,14 @@ function initGame(lvl, resetLives = true){
 
     if(cameraLayer) cameraLayer.style.transform = 'translate(0px, 0px) scale(1)';
 
-    let imgSource = `img${level}.jpg`;
+    // CARICAMENTO IMMAGINI JPG
+    let imgSource = `img${level}.jpg`; // CAMBIATO IN JPG
     currentBgImage = new Image();
     currentBgImage.src = imgSource;
     currentBgImage.onload = () => { redrawStaticLayers(); };
     currentBgImage.onerror = () => { 
-        currentBgImage.src = `img${level}.jpg`; 
+        // Fallback nel caso estremo serva png
+        currentBgImage.src = `img${level}.png`; 
         currentBgImage.onload = () => redrawStaticLayers();
     };
 
@@ -266,7 +280,7 @@ function initGame(lvl, resetLives = true){
     
     // --- GENERAZIONE NEMICI (RAGNI & PALLE NEMICHE) ---
     qixList = [];
-    evilPlayers = []; // Reset array nemici speciali
+    evilPlayers = []; 
 
     let numSpiders = 1;
     if (level >= 8) numSpiders = 4; else if (level >= 7) numSpiders = 3; else if (level >= 5) numSpiders = 2; 
@@ -289,7 +303,6 @@ function initGame(lvl, resetLives = true){
     if (level === 10) numEvilBalls = 2;
 
     for (let i = 0; i < numEvilBalls; i++) {
-        // Spawn lontano dal giocatore
         let ex = Math.floor(W/2) + (Math.random() > 0.5 ? 40 : -40);
         let ey = Math.floor(H/3);
         evilPlayers.push({
@@ -306,7 +319,7 @@ function initGame(lvl, resetLives = true){
 
     // TESTI FLOATING DI INIZIO LIVELLO
     if(level === 1) {
-        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 3500);
+        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 2500);
         spawnFloatingText(`SKIN: ${currentSkin.name}`, W/2, H/2 + 20, 16, '#888', 2000);
     }
     else if(level === 7) spawnFloatingText("FINAL STAGE!", W/2, H/2 - 10, 35, '#ff0000', 3000);
@@ -367,7 +380,7 @@ function spawnParticles(x, y, type) {
         }
     }
     else if (type === 'evil_ball') {
-        pColor = '#ff0000'; // Particelle rosse per le palle nemiche
+        pColor = '#ff0000'; 
     }
     
     for(let i=0; i<count; i++){
@@ -470,7 +483,6 @@ function draw() {
             // GLOW ROSSO "VELENOSO"
             entCtx.shadowColor = '#ff0000'; entCtx.shadowBlur = 25; 
             entCtx.font = `${Math.min(scaleX, scaleY) * 5.5}px sans-serif`; entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
-            // Stessa palla del player, ma il glow rosso la rende "cattiva"
             entCtx.fillText('⚽', 0, 0); 
             entCtx.restore();
         }
@@ -578,18 +590,15 @@ function checkCollisions(){
     
     // Collisioni con Evil Players (Distanza Euclidea)
     for (let ep of evilPlayers) {
-        // Controllo distanza semplice
         let dx = ep.x - player.x;
         let dy = ep.y - player.y;
         let distance = Math.sqrt(dx*dx + dy*dy);
         
-        // Se si toccano (distanza < 1.5 celle)
         if(distance < 1.5) {
             triggerDeath(player.x, player.y);
             return;
         }
         
-        // Se Evil Player tocca la linea STIX che stai disegnando
         let epCellX = Math.floor(ep.x); let epCellY = Math.floor(ep.y);
         if(inBounds(epCellX,epCellY) && grid[idx(epCellX,epCellY)]===CELL_STIX) {
             triggerDeath(ep.x, ep.y);
@@ -603,9 +612,8 @@ function triggerDeath(impactX, impactY) {
     
     // --- GOD MODE CHECK ---
     if (isGodMode) {
-        return; // Ignora la morte
+        return; 
     }
-    // ----------------------
 
     isDying = true; playSound('hit'); addShake(20); spawnParticles(impactX, impactY, 'explosion');
     setTimeout(() => { resetAfterDeath(); }, 2000);
@@ -621,7 +629,6 @@ function resetAfterDeath(){
         stixList = []; player.drawing = false; player.dir = {x:0,y:0}; player.x = Math.floor(W/2); player.y = H-1;
         playerAnimScale = 0; 
         
-        // RESETTARE RAGNI
         qixList = []; 
         let numSpiders = 1;
         if (level >= 8) numSpiders = 4; else if (level >= 7) numSpiders = 3; else if (level >= 5) numSpiders = 2; 
@@ -636,7 +643,6 @@ function resetAfterDeath(){
             });
         }
         
-        // RESETTARE EVIL PLAYERS
         evilPlayers = [];
         let numEvilBalls = 0;
         if (level === 9) numEvilBalls = 1;
@@ -665,7 +671,6 @@ function resetAfterDeath(){
 }
 
 function moveQix(){
-    // Muovi Ragni
     for (let q of qixList) {
         let nx = q.x + q.vx; let ny = q.y + q.vy;
         if(!inBounds(Math.floor(nx), Math.floor(q.y)) || grid[idx(Math.floor(nx), Math.floor(q.y))]===CELL_CLAIMED) q.vx *= -1;
@@ -676,15 +681,13 @@ function moveQix(){
         const s = Math.hypot(q.vx, q.vy); if(s > maxSpeed){ q.vx *= maxSpeed/s; q.vy *= maxSpeed/s; }
     }
     
-    // Muovi Evil Players (Stessa logica dei ragni)
     for (let ep of evilPlayers) {
         let nx = ep.x + ep.vx; let ny = ep.y + ep.vy;
         if(!inBounds(Math.floor(nx), Math.floor(ep.y)) || grid[idx(Math.floor(nx), Math.floor(ep.y))]===CELL_CLAIMED) ep.vx *= -1;
         if(!inBounds(Math.floor(ep.x), Math.floor(ny)) || grid[idx(Math.floor(ep.x), Math.floor(ny))]===CELL_CLAIMED) ep.vy *= -1;
         ep.x += ep.vx; ep.y += ep.vy; 
-        // spawnParticles(ep.x, ep.y, 'evil_ball'); // Opzionale: troppe particelle potrebbero rallentare
         if(Math.random() < 0.02) { ep.vx += (Math.random() - 0.5) * 1.5; ep.vy += (Math.random() - 0.5) * 1.5; }
-        const maxSpeed = 1.4; // Un po' più veloci dei ragni
+        const maxSpeed = 1.4; 
         const s = Math.hypot(ep.vx, ep.vy); if(s > maxSpeed){ ep.vx *= maxSpeed/s; ep.vy *= maxSpeed/s; }
     }
 }
@@ -763,9 +766,8 @@ async function checkAndShowLeaderboard() {
         leaderboardList.innerHTML = "<li>Punteggio non valido per la classifica (Cheat).</li>";
         let { data: classifica } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10);
         disegnaLista(classifica);
-        return; // Esce dalla funzione, impedendo l'accesso al salvataggio
+        return; 
     }
-    // -------------------
 
     let { data: classifica, error } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10);
     
@@ -792,7 +794,6 @@ function disegnaLista(data) {
 }
 
 window.salvaPunteggio = async function() {
-    // Doppio controllo di sicurezza
     if (cheatDetected) { alert("Non puoi salvare il punteggio usando i trucchi!"); return; }
 
     const nome = playerNameInput.value.trim();
@@ -818,21 +819,16 @@ const keysDown = new Set();
 window.addEventListener('keydown', (e)=>{
     if(e.repeat) return; 
 
-    // --- CHEAT DETECTION (IDDQD) ---
-    // Aggiunge il tasto al buffer
     cheatBuffer += e.key.toLowerCase();
-    // Tieni solo gli ultimi 5 caratteri
     if (cheatBuffer.length > 5) {
         cheatBuffer = cheatBuffer.slice(-5);
     }
-    // Controllo sequenza
     if (cheatBuffer === "iddqd" && !isGodMode) {
         isGodMode = true;
         cheatDetected = true;
         spawnFloatingText("GOD MODE ACTIVE", player.x, player.y, 30, '#ffff00', 4000);
         console.log("God Mode Activated!");
     }
-    // -------------------------------
 
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){ keysDown.add(e.key); tryPlayMusic(); if (audioCtx.state === 'suspended') { audioCtx.resume(); } setPlayerDirFromKeys(); e.preventDefault(); }
 });
@@ -933,5 +929,4 @@ if(startBtn) {
         setTimeout(() => { if(loadingScreen) loadingScreen.style.display = 'none'; startGame(); }, 500);
     });
 }
-
 window.addEventListener('resize', resizeCanvases);
