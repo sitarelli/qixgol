@@ -5,24 +5,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>QUIXGOL - Leaderboard Edition</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 
-<link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#00f3ff">
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#00f3ff">
     
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<link rel="icon" type="image/png" href="favicon.png">
+    <link rel="icon" type="image/png" href="favicon.png">
 
-<meta property="og:title" content="QUIXGOL">
-<meta property="og:description" content="Fatti una partita a questo gioco revival">
-<meta property="og:image" content="https://sitarelli.github.io/quixgol/social-image.jpg">
+    <meta property="og:title" content="QUIXGOL">
+    <meta property="og:description" content="Fatti una partita a questo gioco revival">
+    <meta property="og:image" content="https://sitarelli.github.io/quixgol/social-image.jpg">
     
-<meta property="og:url" content="https://sitarelli.github.io/quixgol/">
-<meta name="twitter:card" content="summary_large_image">
-
-
+    <meta property="og:url" content="https://sitarelli.github.io/quixgol/">
+    <meta name="twitter:card" content="summary_large_image">
 </head>
 <body>
 
@@ -43,9 +41,11 @@
                 <div class="label-mini">LEVEL</div>
                 <div class="value-mini" id="ui-level">1</div>
             </div>
+            
             <div id="logo-container">
-                <h2 style="margin:0; color:#00f3ff; text-shadow: 0 0 10px #00f3ff;">QUIXGOL</h2> 
+                <img src="logo.png" id="game-logo" alt="QUIXGOL">
             </div>
+
             <div class="hud-group right">
                 <div class="label-mini">LIVES</div>
                 <div class="value-mini" id="ui-lives">3</div>
@@ -55,15 +55,27 @@
         <div id="game-row">
             <div class="side-col left-col">
                 <div class="hud-vertical">
+                    <div class="label-mini">SCORE</div>
+                    <div class="value-big" id="ui-score">0</div>
+                </div>
+                <div style="height: 0px;"></div>
+                <div class="hud-vertical">
                     <div class="label-mini">AREA</div>
                     <div class="value-big" id="ui-percent">0%</div>
                 </div>
             </div>
 
+
+
+
+
+
             <div id="game-wrapper">
-                <canvas id="imageCanvas"></canvas>
-                <canvas id="gridCanvas"></canvas>
-                <canvas id="entityCanvas"></canvas>
+                <div id="camera-layer">
+                    <canvas id="imageCanvas"></canvas>
+                    <canvas id="gridCanvas"></canvas>
+                    <canvas id="entityCanvas"></canvas>
+                </div>
                 
                 <div id="next-level-container">
                     <button id="next-level-btn">NEXT LEVEL >></button>
@@ -104,5 +116,4 @@
 
     <script src="script.js"></script>
 </body>
-
 </html>

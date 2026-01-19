@@ -1,4 +1,4 @@
-/* script.js - v2.6: CHAOS EDITION (Random Skins & Red Spiders) */
+/* script.js - v2.9: DARK PREVIEW BACKGROUND */
 
 // 1. SUPABASE
 const SUPABASE_URL = 'https://rhttiiwsouqnlwoqpcvb.supabase.co';
@@ -13,23 +13,25 @@ const START_LIVES = 3;
 const MAX_LEVEL = 8; 
 
 const POINTS_PER_LEVEL = 1000; 
-const MAX_TIME_BONUS = 500;    
-const POINTS_PER_FILL = 10;    
+const MAX_TIME_BONUS = 500;     
+const POINTS_PER_FILL = 10;     
+
+// Configurazione ZOOM Mobile
+const MOBILE_ZOOM_LEVEL = 1.15; // Modifica questo per più zoom (es. 1.30, 1.50)
+const MOBILE_BREAKPOINT = 768;
 
 const CELL_UNCLAIMED = 0; const CELL_CLAIMED = 1; const CELL_STIX = 2;
 
-// --- NUOVO: SISTEMA SKIN CASUALI ---
 const SKINS = [
-    { name: "CLASSIC",   primary: '#ffff00', secondary: '#ffaa00', trail: '#00ffff' }, // Giallo/Azzurro
-    { name: "MATRIX",    primary: '#00ff00', secondary: '#003300', trail: '#008800' }, // Tutto Verde
-    { name: "INFERNO",   primary: '#ff3300', secondary: '#ffaa00', trail: '#ff0000' }, // Fuoco
-    { name: "ICE",       primary: '#ffffff', secondary: '#aaccff', trail: '#0088ff' }, // Ghiaccio
-    { name: "CYBERPUNK", primary: '#ff00ff', secondary: '#00ffff', trail: '#ffff00' }, // Neon
-    { name: "GOLD",      primary: '#ffd700', secondary: '#ffcc00', trail: '#ffffff' }  // Oro
+    { name: "CLASSIC",   primary: '#ffff00', secondary: '#ffaa00', trail: '#00ffff' },
+    { name: "MATRIX",    primary: '#00ff00', secondary: '#003300', trail: '#008800' },
+    { name: "INFERNO",   primary: '#ff3300', secondary: '#ffaa00', trail: '#ff0000' },
+    { name: "ICE",       primary: '#ffffff', secondary: '#aaccff', trail: '#0088ff' },
+    { name: "CYBERPUNK", primary: '#ff00ff', secondary: '#00ffff', trail: '#ffff00' },
+    { name: "GOLD",      primary: '#ffd700', secondary: '#ffcc00', trail: '#ffffff' }
 ];
 let currentSkin = SKINS[0];
 
-// --- NUOVO: GENERATORE NOMI MISSIONE ---
 const MISSION_PREFIX = ["OPERATION", "PROTOCOL", "PROJECT", "INITIATIVE", "CODE"];
 const MISSION_SUFFIX = ["OMEGA", "ZERO", "GHOST", "NEON", "STORM", "PHANTOM", "ECHO"];
 
@@ -40,6 +42,7 @@ const entityCanvas = document.getElementById('entityCanvas');
 const nextLevelContainer = document.getElementById('next-level-container');
 const nextLevelBtn = document.getElementById('next-level-btn');
 const gameWrapper = document.getElementById('game-wrapper');
+const cameraLayer = document.getElementById('camera-layer');
 
 // LEADERBOARD DOM
 const gameOverScreen = document.getElementById('game-over-screen');
@@ -73,7 +76,7 @@ let playerAngle = 0;
 let playerAnimScale = 0; 
 let shakeIntensity = 0;  
 let flashList = []; 
-let particles = [];      
+let particles = [];       
 let floatingTexts = []; 
 let player = { x: Math.floor(W/2), y: H-1, drawing: false, dir: {x:0,y:0} };
 let qixList = []; 
@@ -139,15 +142,24 @@ if(musicBtn) {
     });
 }
 
-// --- GRAFICA STATIC LAYERS ---
+// --- GRAFICA STATIC LAYERS (SFONDO SCURO) ---
 function redrawStaticLayers() {
     if (!currentBgImage) return;
+    
+    // 1. Disegna l'immagine FULL COLOR sul canvas di base
     imgCtx.drawImage(currentBgImage, 0, 0, imageCanvas.width, imageCanvas.height);
 
+    // 2. Prepara il GRID CANVAS (il livello "nebbia")
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
-    gridCtx.fillStyle = 'black';
-    gridCtx.fillRect(0, 0, gridCanvas.width, gridCanvas.height);
+    
+    // MODIFICA: Invece di riempire di nero, disegniamo l'immagine SCURA
+    gridCtx.save();
+    // Filtro magico: Scala di grigi 100% e Luminosità bassissima (20%)
+    gridCtx.filter = 'grayscale(100%) brightness(9%)'; 
+    gridCtx.drawImage(currentBgImage, 0, 0, gridCanvas.width, gridCanvas.height);
+    gridCtx.restore();
 
+    // 3. "Buca" la nebbia scura dove abbiamo già conquistato
     let rectSizeX = Math.ceil(scaleX);
     let rectSizeY = Math.ceil(scaleY);
 
@@ -187,7 +199,7 @@ function initGrid(){
     redrawStaticLayers();
 }
 
-function spawnFloatingText(text, x, y, size = 24, color = 'white', duration = 3500) {
+function spawnFloatingText(text, x, y, size = 24, color = 'white', duration = 4000) {
     floatingTexts.push({text, x, y, timer: duration, opacity: 1.0, size, color});
 }
 
@@ -209,7 +221,7 @@ function initGame(lvl, resetLives = true){
     if (resetLives) { 
         lives = START_LIVES; 
         score = 0; 
-        pickRandomSkin(); // Nuova skin a ogni partita
+        pickRandomSkin(); 
     }
     
     levelStartTime = Date.now();
@@ -219,6 +231,8 @@ function initGame(lvl, resetLives = true){
     isPlaying = true; isDying = false; isVictory = false;
     if(nextLevelContainer) nextLevelContainer.style.display = 'none'; 
     gameWrapper.style.cursor = 'none';
+
+    if(cameraLayer) cameraLayer.style.transform = 'translate(0px, 0px) scale(1)';
 
     let imgSource = `img${level}.png`;
     currentBgImage = new Image();
@@ -254,9 +268,8 @@ function initGame(lvl, resetLives = true){
     updateUI();
     tryPlayMusic(); 
 
-    // --- RANDOM MISSION START ---
     if(level === 1) {
-        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 2500);
+        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 3500);
         spawnFloatingText(`SKIN: ${currentSkin.name}`, W/2, H/2 + 20, 16, '#888', 2000);
     }
     else if(level === 7) spawnFloatingText("FINAL STAGE!", W/2, H/2 - 10, 35, '#ff0000', 3000);
@@ -271,9 +284,12 @@ function updateUI(){
     const lvlEl = document.getElementById('ui-level');
     const livEl = document.getElementById('ui-lives');
     const perEl = document.getElementById('ui-percent');
+    const scrEl = document.getElementById('ui-score');
+
     if(lvlEl) lvlEl.innerText = level;
     if(livEl) livEl.innerText = lives;
     if(perEl) perEl.innerText = Math.floor(currentPercent) + "%";
+    if(scrEl) scrEl.innerText = score;
 }
 
 function getClaimPercent(){
@@ -292,11 +308,10 @@ function spawnParticles(x, y, type) {
     else if (type === 'fill_spark') { count = 4; pColor = currentSkin.trail; }
     else if (type === 'player') { count = 1; pColor = Math.random() > 0.5 ? currentSkin.primary : currentSkin.secondary; }
     else if (type === 'spider') {
-        // RAGNI ROSSI DAL LIVELLO 6
         if(level >= 6) {
-            pColor = Math.random() > 0.5 ? '#ff0000' : '#880000'; // Rosso puro
+            pColor = Math.random() > 0.5 ? '#ff0000' : '#880000'; 
         } else {
-            pColor = Math.random() > 0.5 ? '#ff0055' : '#aa00ff'; // Viola classico
+            pColor = Math.random() > 0.5 ? '#ff0055' : '#aa00ff'; 
         }
     }
     
@@ -312,7 +327,36 @@ function spawnParticles(x, y, type) {
     }
 }
 
+function updateCamera() {
+    if (window.innerWidth > MOBILE_BREAKPOINT) {
+        cameraLayer.style.transform = 'translate(0px, 0px) scale(1)';
+        return;
+    }
+
+    const playerPixelX = (player.x + 0.5) * scaleX;
+    const playerPixelY = (player.y + 0.5) * scaleY;
+
+    const viewW = gameWrapper.clientWidth;
+    const viewH = gameWrapper.clientHeight;
+
+    let transX = (viewW / 2) - (playerPixelX * MOBILE_ZOOM_LEVEL);
+    let transY = (viewH / 2) - (playerPixelY * MOBILE_ZOOM_LEVEL);
+
+    const maxTransX = 0;
+    const minTransX = viewW - (viewW * MOBILE_ZOOM_LEVEL);
+    
+    const maxTransY = 0;
+    const minTransY = viewH - (viewH * MOBILE_ZOOM_LEVEL);
+
+    transX = Math.min(maxTransX, Math.max(transX, minTransX));
+    transY = Math.min(maxTransY, Math.max(transY, minTransY));
+
+    cameraLayer.style.transform = `translate(${transX}px, ${transY}px) scale(${MOBILE_ZOOM_LEVEL})`;
+}
+
 function draw() {
+    updateCamera();
+
     let offsetX = 0, offsetY = 0;
     if (shakeIntensity > 0) {
         offsetX = (Math.random() - 0.5) * shakeIntensity; offsetY = (Math.random() - 0.5) * shakeIntensity;
@@ -325,9 +369,7 @@ function draw() {
     
     let rectSizeX = Math.ceil(scaleX), rectSizeY = Math.ceil(scaleY);
 
-    // Stix (Usa colore SKIN)
     if(stixList.length > 0){
-        // Pulsazione tra bianco e colore trail della skin
         const pulse = Math.sin(Date.now() / 50) > 0 ? '#ffffff' : currentSkin.trail;
         entCtx.fillStyle = pulse; entCtx.beginPath();
         for(let p of stixList){ entCtx.rect(Math.floor(p.x*scaleX), Math.floor(p.y*scaleY), rectSizeX, rectSizeY); }
@@ -355,16 +397,13 @@ function draw() {
             if(p.life <= 0) particles.splice(i, 1);
         }
         
-        // DISEGNO RAGNI
         for (let q of qixList) {
             entCtx.save(); entCtx.translate((q.x + 0.5) * scaleX, (q.y + 0.5) * scaleY);
             let angle = Math.atan2(q.vy, q.vx); entCtx.rotate(angle + Math.PI / 2);
             
-            // LOGICA RAGNI ROSSI
             if(isDying) { 
                 entCtx.shadowColor = 'red'; entCtx.shadowBlur = 20; 
             } else if (level >= 6) {
-                // AURA ROSSA DEMONIACA
                 entCtx.shadowColor = '#ff0000'; entCtx.shadowBlur = 20; 
             }
 
@@ -372,7 +411,6 @@ function draw() {
             entCtx.fillText('🕷️', 0, 0); entCtx.restore();
         }
 
-        // DISEGNO GIOCATORE
         if (isDying) playerAnimScale = Math.max(0, playerAnimScale - 0.1); else playerAnimScale = Math.min(1, playerAnimScale + 0.05); 
         if(playerAnimScale > 0.01) {
             entCtx.save(); entCtx.translate((player.x + 0.5) * scaleX, (player.y + 0.5) * scaleY);
@@ -381,7 +419,6 @@ function draw() {
             entCtx.rotate(playerAngle);
             
             const blinkPhase = Math.sin((Date.now() / 500) * Math.PI); const glowBlur = 10 + 10 * Math.abs(blinkPhase); 
-            // Usa colore SKIN
             entCtx.shadowColor = currentSkin.trail; entCtx.shadowBlur = glowBlur;
             
             entCtx.font = `${Math.min(scaleX, scaleY) * 5.5}px sans-serif`; entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
@@ -427,6 +464,7 @@ function closeStixAndFill(){
     
     let filled = 0;
     
+    // NOTA: Qui continuiamo a usare destination-out per bucare la nebbia scura
     gridCtx.globalCompositeOperation = 'destination-out'; 
     gridCtx.beginPath();
     let rectSizeX = Math.ceil(scaleX);
@@ -489,17 +527,18 @@ function resetAfterDeath(){
                 vy: (Math.random() * 0.8 + 0.4) * (Math.random() < 0.5 ? -1 : 1)
             });
         }
-        gridCtx.fillStyle = 'black';
-        gridCtx.beginPath();
-        let rectSizeX = Math.ceil(scaleX), rectSizeY = Math.ceil(scaleY);
+        
+        // RIPRISTINO DELLE CELLE STIX A UNCLAIMED
         for(let i=0; i<grid.length; i++) {
             if(grid[i]===CELL_STIX) {
                 grid[i] = CELL_UNCLAIMED;
-                let x = i % W; let y = Math.floor(i / W);
-                gridCtx.rect(Math.floor(x*scaleX), Math.floor(y*scaleY), rectSizeX, rectSizeY);
             }
         }
-        gridCtx.fill();
+        
+        // MODIFICA: Invece di disegnare rettangoli neri, ridisegniamo l'intero livello statico
+        // Questo ripristina la "nebbia scura" sulle linee stix perse
+        redrawStaticLayers();
+        
         flashList = [];
     }
 }
@@ -695,5 +734,3 @@ if(startBtn) {
     });
 }
 window.addEventListener('resize', resizeCanvases);
-
-
