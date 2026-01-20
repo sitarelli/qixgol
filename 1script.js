@@ -1,4 +1,4 @@
-/* script.js - v3.5: IPHONE ASPECT RATIO FIX & POWERUPS */
+/* script.js - v4.0: CLEAN TOUCH EDITION */
 
 // 1. SUPABASE
 const SUPABASE_URL = 'https://rhttiiwsouqnlwoqpcvb.supabase.co';
@@ -18,10 +18,8 @@ const POINTS_PER_FILL = 10;
 const POINTS_KILL_SPIDER = 500; 
 const POINTS_KILL_EVIL = 1000;  
 
-// BONUS VELOCITÀ
-const SPEED_BOOST_PER_KILL = 0.25; // +25% velocità per ogni nemico ucciso
+const SPEED_BOOST_PER_KILL = 0.25; 
 
-// Configurazione ZOOM Mobile
 const MOBILE_ZOOM_LEVEL = 1.15; 
 const MOBILE_BREAKPOINT = 768;
 
@@ -110,7 +108,6 @@ function preloadLevelImages() {
     }
 }
 
-// --- AUDIO ---
 function playSound(type) {
     if (audioCtx.state === 'suspended') { audioCtx.resume(); }
     const osc = audioCtx.createOscillator();
@@ -132,21 +129,12 @@ function playSound(type) {
         gainNode.gain.setValueAtTime(0.2, now); gainNode.gain.linearRampToValueAtTime(0, now + 0.6);
         osc.start(now); osc.stop(now + 0.6);
     } else if (type === 'kill') {
-        // SUONO POWERUP: Tono alto e cristallino (tipo moneta/bonus)
-        osc.type = 'sine'; 
-        osc.frequency.setValueAtTime(600, now); 
-        osc.frequency.linearRampToValueAtTime(1200, now + 0.15); // Sale veloce
-        gainNode.gain.setValueAtTime(0.3, now); 
-        gainNode.gain.linearRampToValueAtTime(0, now + 0.4);
+        osc.type = 'sine'; osc.frequency.setValueAtTime(600, now); osc.frequency.linearRampToValueAtTime(1200, now + 0.15); 
+        gainNode.gain.setValueAtTime(0.3, now); gainNode.gain.linearRampToValueAtTime(0, now + 0.4);
         osc.start(now); osc.stop(now + 0.4);
-        
-        // Aggiungiamo un secondo oscillatore per l'effetto "magico"
-        const osc2 = audioCtx.createOscillator();
-        const gain2 = audioCtx.createGain();
+        const osc2 = audioCtx.createOscillator(); const gain2 = audioCtx.createGain();
         osc2.connect(gain2); gain2.connect(audioCtx.destination);
-        osc2.type = 'triangle';
-        osc2.frequency.setValueAtTime(900, now);
-        osc2.frequency.linearRampToValueAtTime(1800, now + 0.15);
+        osc2.type = 'triangle'; osc2.frequency.setValueAtTime(900, now); osc2.frequency.linearRampToValueAtTime(1800, now + 0.15);
         gain2.gain.setValueAtTime(0.1, now); gain2.gain.linearRampToValueAtTime(0, now + 0.4);
         osc2.start(now); osc2.stop(now + 0.4);
     }
@@ -162,11 +150,9 @@ if(musicBtn) {
     musicBtn.addEventListener('click', () => {
         isMusicOn = !isMusicOn;
         if (isMusicOn) {
-            if(bgMusic) bgMusic.play();
-            musicBtn.textContent = "🎵"; musicBtn.classList.remove('off');
+            if(bgMusic) bgMusic.play(); musicBtn.textContent = "🎵"; musicBtn.classList.remove('off');
         } else {
-            if(bgMusic) bgMusic.pause();
-            musicBtn.textContent = "🔇"; musicBtn.classList.add('off');
+            if(bgMusic) bgMusic.pause(); musicBtn.textContent = "🔇"; musicBtn.classList.add('off');
         }
         musicBtn.blur();
     });
@@ -198,19 +184,14 @@ function redrawStaticLayers() {
     gridCtx.globalCompositeOperation = 'source-over'; 
 }
 
-// --- FIX PROPORZIONI IPHONE ---
-
 function resizeCanvases() {
     const winW = window.innerWidth;
     const winH = window.innerHeight;
     
-    // Calcola la dimensione ideale basata sullo spazio disponibile
-    // 90% della larghezza o 60% dell'altezza (lasciando spazio a HUD e bottoni)
+    // Calcolo dimensioni solido per iPhone 12 fix
     let size = Math.min(winW * 0.9, winH * 0.60);
-    
-    if (size > 650) size = 650; // Limite desktop
+    if (size > 650) size = 650; 
 
-    // FORZA il wrapper a essere un quadrato perfetto in pixel
     gameWrapper.style.width = Math.floor(size) + "px";
     gameWrapper.style.height = Math.floor(size) + "px";
 
@@ -512,9 +493,7 @@ function draw() {
 function closeStixAndFill(){
     if(stixList.length===0) return;
 
-    for (let p of stixList) {
-        grid[idx(p.x, p.y)] = CELL_CLAIMED;
-    }
+    for (let p of stixList) { grid[idx(p.x, p.y)] = CELL_CLAIMED; }
 
     let visited = new Uint8Array(W * H);
     let areas = [];
@@ -529,9 +508,7 @@ function closeStixAndFill(){
                 let curr = stack.pop();
                 currentArea.push(curr);
                 
-                let cx = curr % W;
-                let cy = Math.floor(curr / W);
-
+                let cx = curr % W; let cy = Math.floor(curr / W);
                 const neighbors = [];
                 if (cx > 0) neighbors.push(curr - 1);
                 if (cx < W - 1) neighbors.push(curr + 1);
@@ -540,8 +517,7 @@ function closeStixAndFill(){
 
                 for (let n of neighbors) {
                     if (grid[n] === CELL_UNCLAIMED && !visited[n]) {
-                        visited[n] = 1;
-                        stack.push(n);
+                        visited[n] = 1; stack.push(n);
                     }
                 }
             }
@@ -550,70 +526,46 @@ function closeStixAndFill(){
     }
 
     if (areas.length === 0) return 0; 
-
     areas.sort((a, b) => b.length - a.length);
 
-    let mainArea = areas[0]; 
     let capturedAreas = areas.slice(1); 
-
     let filledCount = 0;
-    let rectSizeX = Math.ceil(scaleX);
-    let rectSizeY = Math.ceil(scaleY);
+    let rectSizeX = Math.ceil(scaleX); let rectSizeY = Math.ceil(scaleY);
 
     gridCtx.globalCompositeOperation = 'destination-out';
     gridCtx.beginPath();
 
     for (let area of capturedAreas) {
         for (let idxVal of area) {
-            grid[idxVal] = CELL_CLAIMED;
-            filledCount++;
+            grid[idxVal] = CELL_CLAIMED; filledCount++;
             flashList.push({idx: idxVal, timer: 15});
-
-            let x = idxVal % W;
-            let y = Math.floor(idxVal / W);
+            let x = idxVal % W; let y = Math.floor(idxVal / W);
             gridCtx.rect(Math.floor(x*scaleX), Math.floor(y*scaleY), rectSizeX, rectSizeY);
         }
     }
     gridCtx.fill();
     gridCtx.globalCompositeOperation = 'source-over'; 
-
     stixList = []; 
 
     let killed = false;
-
-    // RAGNI
     for (let i = qixList.length - 1; i >= 0; i--) {
-        let q = qixList[i];
-        let qIdx = idx(Math.floor(q.x), Math.floor(q.y));
+        let q = qixList[i]; let qIdx = idx(Math.floor(q.x), Math.floor(q.y));
         if (grid[qIdx] === CELL_CLAIMED) {
-            spawnParticles(q.x, q.y, 'explosion');
-            playSound('kill'); 
-            qixList.splice(i, 1);
-            score += POINTS_KILL_SPIDER;
+            spawnParticles(q.x, q.y, 'explosion'); playSound('kill'); 
+            qixList.splice(i, 1); score += POINTS_KILL_SPIDER;
             spawnFloatingText("ENEMY KILLED!", q.x, q.y, 20, '#ff0000');
             spawnFloatingText("SPEED UP!", q.x, q.y + 20, 20, '#00ffff', 2000);
-            
-            // BOOST VELOCITÀ
-            playerSpeedMult += SPEED_BOOST_PER_KILL;
-            killed = true;
+            playerSpeedMult += SPEED_BOOST_PER_KILL; killed = true;
         }
     }
-
-    // PALLE NEMICHE
     for (let i = evilPlayers.length - 1; i >= 0; i--) {
-        let ep = evilPlayers[i];
-        let epIdx = idx(Math.floor(ep.x), Math.floor(ep.y));
+        let ep = evilPlayers[i]; let epIdx = idx(Math.floor(ep.x), Math.floor(ep.y));
         if (grid[epIdx] === CELL_CLAIMED) {
-            spawnParticles(ep.x, ep.y, 'explosion');
-            playSound('kill');
-            evilPlayers.splice(i, 1);
-            score += POINTS_KILL_EVIL;
+            spawnParticles(ep.x, ep.y, 'explosion'); playSound('kill');
+            evilPlayers.splice(i, 1); score += POINTS_KILL_EVIL;
             spawnFloatingText("RIVAL ELIMINATED!", ep.x, ep.y, 20, '#ff0000');
             spawnFloatingText("SPEED UP!", ep.x, ep.y + 20, 20, '#00ffff', 2000);
-
-            // BOOST VELOCITÀ
-            playerSpeedMult += SPEED_BOOST_PER_KILL;
-            killed = true;
+            playerSpeedMult += SPEED_BOOST_PER_KILL; killed = true;
         }
     }
 
@@ -627,11 +579,7 @@ function closeStixAndFill(){
     }
 
     updateUI(); 
-
-    if (getClaimPercent() >= WIN_PERCENT || (qixList.length === 0 && evilPlayers.length === 0)) { 
-        winLevel(); 
-    }
-
+    if (getClaimPercent() >= WIN_PERCENT || (qixList.length === 0 && evilPlayers.length === 0)) { winLevel(); }
     return filledCount;
 }
 
@@ -641,29 +589,17 @@ function checkCollisions(){
         if(inBounds(qixCellX,qixCellY) && grid[idx(qixCellX,qixCellY)]===CELL_STIX){ triggerDeath(q.x, q.y); return; }
         if(player.drawing){ if(qixCellX===player.x && qixCellY===player.y){ triggerDeath(player.x, player.y); return; } }
     }
-    
     for (let ep of evilPlayers) {
-        let dx = ep.x - player.x;
-        let dy = ep.y - player.y;
+        let dx = ep.x - player.x; let dy = ep.y - player.y;
         let distance = Math.sqrt(dx*dx + dy*dy);
-        
-        if(distance < 1.5) {
-            triggerDeath(player.x, player.y);
-            return;
-        }
-        
+        if(distance < 1.5) { triggerDeath(player.x, player.y); return; }
         let epCellX = Math.floor(ep.x); let epCellY = Math.floor(ep.y);
-        if(inBounds(epCellX,epCellY) && grid[idx(epCellX,epCellY)]===CELL_STIX) {
-            triggerDeath(ep.x, ep.y);
-            return;
-        }
+        if(inBounds(epCellX,epCellY) && grid[idx(epCellX,epCellY)]===CELL_STIX) { triggerDeath(ep.x, ep.y); return; }
     }
 }
 
 function triggerDeath(impactX, impactY) {
-    if(isDying) return; 
-    if (isGodMode) return; 
-
+    if(isDying || isGodMode) return; 
     isDying = true; playSound('hit'); addShake(20); spawnParticles(impactX, impactY, 'explosion');
     setTimeout(() => { resetAfterDeath(); }, 2000);
 }
@@ -676,49 +612,23 @@ function resetAfterDeath(){
         gestisciFinePartita(false);
     } else {
         stixList = []; player.drawing = false; player.dir = {x:0,y:0}; player.x = Math.floor(W/2); player.y = H-1;
-        playerAnimScale = 0; 
+        playerAnimScale = 0; playerSpeedMult = 1.0; moveAccumulator = 0;
         
-        playerSpeedMult = 1.0; 
-        moveAccumulator = 0;
-
-        qixList = []; 
-        let numSpiders = 1;
+        qixList = []; let numSpiders = 1;
         if (level >= 8) numSpiders = 4; else if (level >= 7) numSpiders = 3; else if (level >= 5) numSpiders = 2; 
-
         for(let i=0; i<numSpiders; i++) {
             let startX = Math.floor(W * 0.3) + (i * 20); let startY = Math.floor(H * 0.3) + (i * 10);
             if(startX >= W-2) startX = W-10; if(startY >= H-2) startY = H-10;
-            qixList.push({
-                x: startX, y: startY,
-                vx: (Math.random() * 0.8 + 0.4) * (Math.random() < 0.5 ? -1 : 1),
-                vy: (Math.random() * 0.8 + 0.4) * (Math.random() < 0.5 ? -1 : 1)
-            });
+            qixList.push({x: startX, y: startY, vx: (Math.random() * 0.8 + 0.4) * (Math.random() < 0.5 ? -1 : 1), vy: (Math.random() * 0.8 + 0.4) * (Math.random() < 0.5 ? -1 : 1)});
         }
-        
-        evilPlayers = [];
-        let numEvilBalls = 0;
-        if (level === 9) numEvilBalls = 1;
-        if (level === 10) numEvilBalls = 2;
-
+        evilPlayers = []; let numEvilBalls = 0;
+        if (level === 9) numEvilBalls = 1; if (level === 10) numEvilBalls = 2;
         for (let i = 0; i < numEvilBalls; i++) {
-            let ex = Math.floor(W/2) + (Math.random() > 0.5 ? 40 : -40);
-            let ey = Math.floor(H/3);
-            evilPlayers.push({
-                x: ex, y: ey,
-                vx: (Math.random() * 0.9 + 0.5) * (Math.random() < 0.5 ? -1 : 1),
-                vy: (Math.random() * 0.9 + 0.5) * (Math.random() < 0.5 ? -1 : 1),
-                angle: 0
-            });
+            let ex = Math.floor(W/2) + (Math.random() > 0.5 ? 40 : -40); let ey = Math.floor(H/3);
+            evilPlayers.push({x: ex, y: ey, vx: (Math.random() * 0.9 + 0.5) * (Math.random() < 0.5 ? -1 : 1), vy: (Math.random() * 0.9 + 0.5) * (Math.random() < 0.5 ? -1 : 1), angle: 0});
         }
-        
-        for(let i=0; i<grid.length; i++) {
-            if(grid[i]===CELL_STIX) {
-                grid[i] = CELL_UNCLAIMED;
-            }
-        }
-        
-        redrawStaticLayers();
-        flashList = [];
+        for(let i=0; i<grid.length; i++) { if(grid[i]===CELL_STIX) grid[i] = CELL_UNCLAIMED; }
+        redrawStaticLayers(); flashList = [];
     }
 }
 
@@ -732,15 +642,13 @@ function moveQix(){
         const difficultyMultiplier = 1 + ((level - 1) * 0.1); const maxSpeed = 1.2 * difficultyMultiplier; 
         const s = Math.hypot(q.vx, q.vy); if(s > maxSpeed){ q.vx *= maxSpeed/s; q.vy *= maxSpeed/s; }
     }
-    
     for (let ep of evilPlayers) {
         let nx = ep.x + ep.vx; let ny = ep.y + ep.vy;
         if(!inBounds(Math.floor(nx), Math.floor(ep.y)) || grid[idx(Math.floor(nx), Math.floor(ep.y))]===CELL_CLAIMED) ep.vx *= -1;
         if(!inBounds(Math.floor(ep.x), Math.floor(ny)) || grid[idx(Math.floor(ep.x), Math.floor(ny))]===CELL_CLAIMED) ep.vy *= -1;
         ep.x += ep.vx; ep.y += ep.vy; 
         if(Math.random() < 0.02) { ep.vx += (Math.random() - 0.5) * 1.5; ep.vy += (Math.random() - 0.5) * 1.5; }
-        const maxSpeed = 1.4; 
-        const s = Math.hypot(ep.vx, ep.vy); if(s > maxSpeed){ ep.vx *= maxSpeed/s; ep.vy *= maxSpeed/s; }
+        const maxSpeed = 1.4; const s = Math.hypot(ep.vx, ep.vy); if(s > maxSpeed){ ep.vx *= maxSpeed/s; ep.vy *= maxSpeed/s; }
     }
 }
 
@@ -750,17 +658,13 @@ function winLevel() {
     let timeBonus = Math.max(0, MAX_TIME_BONUS - Math.floor(timeTakenSeconds * 5));
     score += (levelScore + timeBonus);
     
-    grid.fill(CELL_CLAIMED); 
-    gridCtx.clearRect(0,0,gridCanvas.width, gridCanvas.height);
-    
+    grid.fill(CELL_CLAIMED); gridCtx.clearRect(0,0,gridCanvas.width, gridCanvas.height);
     flashList = []; particles = []; floatingTexts = [];
     draw(); gameWrapper.style.cursor = 'default'; 
     if (level >= MAX_LEVEL) {
         isVictory = true; drawVictory(); 
         setTimeout(() => { gestisciFinePartita(true); }, 2000);
-    } else {
-        if(nextLevelContainer) nextLevelContainer.style.display = 'block'; 
-    }
+    } else { if(nextLevelContainer) nextLevelContainer.style.display = 'block'; }
 }
 
 if(nextLevelBtn) nextLevelBtn.addEventListener('click', () => { initGame(level + 1, false); });
@@ -774,8 +678,7 @@ function tickPlayer(){
     if(curType===CELL_CLAIMED && nextType===CELL_UNCLAIMED){ player.drawing = true; }
     if(player.drawing && nextType===CELL_CLAIMED){
         player.x = nx; player.y = ny; const filled = closeStixAndFill(); player.drawing = false; 
-        updateUI(); 
-        return;
+        updateUI(); return;
     }
     if(player.drawing){ 
         const nextId = idx(nx, ny);
@@ -799,15 +702,9 @@ function gameLoop(now){
     deltaTime = now - lastTime; lastTime = now;
     if (!isDying && !isVictory) { 
         moveQix(); 
-        
-        // --- LOGICA VELOCITÀ AUMENTATA (Accumulatore) ---
         moveAccumulator += (1 * playerSpeedMult); 
-        
         while (moveAccumulator >= 1) {
-            tickPlayer();
-            checkCollisions(); 
-            moveAccumulator -= 1;
-            
+            tickPlayer(); checkCollisions(); moveAccumulator -= 1;
             if(isDying || isVictory) break; 
         }
     }
@@ -825,53 +722,29 @@ async function gestisciFinePartita(vittoria) {
 }
 
 async function checkAndShowLeaderboard() {
-    // 1. Reset visuale: mostra caricamento e nasconde input all'inizio
     leaderboardList.innerHTML = "<li>Caricamento dati...</li>"; 
     inputSection.classList.add('hidden'); 
-    inputSection.style.display = 'none'; // Sicurezza extra CSS
+    inputSection.style.display = 'none'; 
     
-    // --- CONTROLLO ANTI-TRUCCO ---
-    // Se hai usato i trucchi, ti mostra la classifica ma ti impedisce di salvare
     if (cheatDetected) {
         leaderboardList.innerHTML = "<li style='color: var(--danger)'>Punteggio non valido (Trucchi attivi).</li>";
         let { data: classifica } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10);
-        disegnaLista(classifica);
-        return; // ESCE QUI: Non mostra l'input
+        disegnaLista(classifica); return;
     }
 
-    // 2. Scarica la classifica
     let { data: classifica, error } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10);
-    
     if (error) { 
-        console.error("Errore Supabase:", error); 
-        leaderboardList.innerHTML = "<li>Errore caricamento dati.</li>"; 
-        return; 
+        console.error("Errore Supabase:", error); leaderboardList.innerHTML = "<li>Errore caricamento dati.</li>"; return; 
     }
     
-    // 3. Calcola se entri in classifica
     let entraInClassifica = false;
-    
-    // Se ci sono meno di 10 record, entri di sicuro (purché score > 0)
-    if (classifica.length < 10) {
-        entraInClassifica = true;
-    } 
-    // Altrimenti, entri solo se hai battuto il 10° classificato
-    else if (score > classifica[9].punteggio) {
-        entraInClassifica = true;
-    }
-    
-    // Se hai fatto 0 punti, non entri mai
+    if (classifica.length < 10) { entraInClassifica = true; } 
+    else if (score > classifica[9].punteggio) { entraInClassifica = true; }
     if (score === 0) entraInClassifica = false;
 
-    // 4. MOSTRA L'INPUT (Logica rafforzata)
     if (entraInClassifica) {
-        console.log("Nuovo Record! Mostro input."); // Debug in console
-        inputSection.classList.remove('hidden');
-        inputSection.style.display = 'block'; // Forza visualizzazione CSS
-    } else {
-        console.log("Niente record. Punteggio: " + score);
+        inputSection.classList.remove('hidden'); inputSection.style.display = 'block';
     }
-
     disegnaLista(classifica);
 }
 
@@ -887,19 +760,15 @@ function disegnaLista(data) {
 
 window.salvaPunteggio = async function() {
     if (cheatDetected) { alert("Non puoi salvare il punteggio usando i trucchi!"); return; }
-
     const nome = playerNameInput.value.trim();
     if (nome.length === 0 || nome.length > 8) { alert("Inserisci un nome valido (1-8 caratteri)"); return; }
     const btn = document.getElementById('btn-save'); if(btn) { btn.disabled = true; btn.innerText = "Salvataggio..."; }
     
     const { error } = await dbClient.from('classifica').insert([{ nome: nome, punteggio: score }]);
-    
     if (error) { 
-        console.error("ERRORE SALVATAGGIO:", error);
-        alert("Errore: " + error.message + " (Codice: " + error.code + ")"); 
-        if(btn) btn.disabled = false; 
+        alert("Errore: " + error.message); if(btn) btn.disabled = false; 
     } else { 
-        inputSection.classList.add('hidden'); 
+        inputSection.classList.add('hidden'); inputSection.style.display = 'none';
         const { data } = await dbClient.from('classifica').select('*').order('punteggio', { ascending: false }).limit(10); 
         disegnaLista(data); 
     }
@@ -910,21 +779,18 @@ window.riavviaGioco = function() { window.location.reload(); }
 const keysDown = new Set();
 window.addEventListener('keydown', (e)=>{
     if(e.repeat) return; 
-
     cheatBuffer += e.key.toLowerCase();
-    if (cheatBuffer.length > 5) {
-        cheatBuffer = cheatBuffer.slice(-5);
-    }
+    if (cheatBuffer.length > 5) { cheatBuffer = cheatBuffer.slice(-5); }
     if (cheatBuffer === "iddqd" && !isGodMode) {
-        isGodMode = true;
-        cheatDetected = true;
+        isGodMode = true; cheatDetected = true;
         spawnFloatingText("GOD MODE ACTIVE", player.x, player.y, 30, '#ffff00', 4000);
         console.log("God Mode Activated!");
     }
-
-    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){ keysDown.add(e.key); tryPlayMusic(); if (audioCtx.state === 'suspended') { audioCtx.resume(); } setPlayerDirFromKeys(); e.preventDefault(); }
+    if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){ 
+        keysDown.add(e.key); tryPlayMusic(); if (audioCtx.state === 'suspended') { audioCtx.resume(); } 
+        setPlayerDirFromKeys(); e.preventDefault(); 
+    }
 });
-
 window.addEventListener('keyup', (e)=>{ if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){ keysDown.delete(e.key); setPlayerDirFromKeys(); e.preventDefault(); } });
 function setPlayerDirFromKeys(){
     const order = ['ArrowUp','ArrowRight','ArrowDown','ArrowLeft']; let found = {x:0,y:0};
@@ -933,43 +799,25 @@ function setPlayerDirFromKeys(){
 }
 
 let touchStartX = 0; let touchStartY = 0;
-function isButton(e) { return e.target.id === 'next-level-btn' || e.target.closest('#next-level-btn') || e.target.closest('#game-over-screen') || e.target.closest('.turn-btn'); }
-gameWrapper.addEventListener('touchstart', e => { if (isButton(e)) return; tryPlayMusic(); if (audioCtx.state === 'suspended') { audioCtx.resume(); } touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY; e.preventDefault(); }, {passive: false});
+function isButton(e) { return e.target.id === 'next-level-btn' || e.target.closest('#next-level-btn') || e.target.closest('#game-over-screen'); }
+gameWrapper.addEventListener('touchstart', e => { 
+    if (isButton(e)) return; 
+    tryPlayMusic(); if (audioCtx.state === 'suspended') { audioCtx.resume(); } 
+    touchStartX = e.changedTouches[0].screenX; touchStartY = e.changedTouches[0].screenY; 
+    e.preventDefault(); 
+}, {passive: false});
 gameWrapper.addEventListener('touchmove', e => { if (isButton(e)) return; e.preventDefault(); }, {passive: false});
-gameWrapper.addEventListener('touchend', e => { if (isButton(e)) return; e.preventDefault(); let touchEndX = e.changedTouches[0].screenX; let touchEndY = e.changedTouches[0].screenY; handleSwipe(touchEndX - touchStartX, touchEndY - touchStartY); }, {passive: false});
-function handleSwipe(dx, dy) { if (Math.abs(dx) < 30 && Math.abs(dy) < 30) return; if (Math.abs(dx) > Math.abs(dy)) player.dir = { x: dx > 0 ? 1 : -1, y: 0 }; else player.dir = { x: 0, y: dy > 0 ? 1 : -1 }; }
+gameWrapper.addEventListener('touchend', e => { 
+    if (isButton(e)) return; 
+    e.preventDefault(); 
+    let touchEndX = e.changedTouches[0].screenX; let touchEndY = e.changedTouches[0].screenY; 
+    handleSwipe(touchEndX - touchStartX, touchEndY - touchStartY); 
+}, {passive: false});
 
-const turnLeftBtn = document.getElementById('btn-turn-left');
-const turnRightBtn = document.getElementById('btn-turn-right');
-
-function handleMobileTurn(direction) {
-    tryPlayMusic();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    const oldDir = player.dir;
-    let newDir = {x: 0, y: 0};
-
-    if (oldDir.x === 0 && oldDir.y === 0) {
-         newDir = {x: 0, y: -1}; 
-    } else {
-        if (direction === 'right') { // ORARIO (CW)
-            newDir = { x: -oldDir.y, y: oldDir.x };
-        } else { // ANTIORARIO (CCW)
-            newDir = { x: oldDir.y, y: -oldDir.x };
-        }
-    }
-    player.dir = newDir;
-}
-
-if (turnLeftBtn) {
-    const action = (e) => { e.preventDefault(); handleMobileTurn('left'); };
-    turnLeftBtn.addEventListener('touchstart', action, { passive: false });
-    turnLeftBtn.addEventListener('mousedown', action);
-}
-if (turnRightBtn) {
-    const action = (e) => { e.preventDefault(); handleMobileTurn('right'); };
-    turnRightBtn.addEventListener('touchstart', action, { passive: false });
-    turnRightBtn.addEventListener('mousedown', action);
+function handleSwipe(dx, dy) { 
+    if (Math.abs(dx) < 20 && Math.abs(dy) < 20) return; 
+    if (Math.abs(dx) > Math.abs(dy)) player.dir = { x: dx > 0 ? 1 : -1, y: 0 }; 
+    else player.dir = { x: 0, y: dy > 0 ? 1 : -1 }; 
 }
 
 const loadingScreen = document.getElementById('loading-screen');
@@ -979,39 +827,30 @@ const startBtn = document.getElementById('start-game-btn');
 const loadingBarContainer = document.getElementById('loading-bar-container');
 
 function startGame() {
-    resizeCanvases(); 
-    initGame(1, true); 
-    
+    resizeCanvases(); initGame(1, true); 
     setTimeout(() => {
         player.dir = {x: 0, y: -1}; 
         if (bgMusic) { bgMusic.play().catch(e => console.log("Audio ancora bloccato")); }
     }, 200);
-
     setTimeout(resizeCanvases, 150);
 }
 
 preloadLevelImages(); 
-
 let loadProgress = 0;
 const loadInterval = setInterval(() => {
     loadProgress += Math.random() * 15; if(loadProgress > 100) loadProgress = 100;
     if(loadingBar) loadingBar.style.width = loadProgress + "%";
     if(loadProgress >= 100) { clearInterval(loadInterval); onLoadComplete(); }
 }, 100); 
-
 window.addEventListener('load', () => { loadProgress = 90; });
 
 function onLoadComplete() {
     if(loadingText) { loadingText.innerText = "GIOCO CARICATO"; loadingText.style.color = "#00ff00"; }
     if(loadingBar) loadingBar.style.width = "100%";
-    
     setTimeout(() => {
         if(loadingBarContainer) loadingBarContainer.style.display = 'none';
-        
-        // CORREZIONE QUI: Rimuoviamo la classe 'hidden' invece di cambiare style.display
         if(startBtn) {
             startBtn.classList.remove('hidden');
-            // Aggiungiamo un'animazione di entrata opzionale
             startBtn.style.animation = "pulseBtn 1s infinite alternate";
         }
     }, 500);

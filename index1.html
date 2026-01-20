@@ -57,11 +57,6 @@
                     <canvas id="entityCanvas"></canvas>
                 </div>
 
-                <div id="mobile-two-buttons">
-                    <button class="turn-btn" id="btn-turn-left" aria-label="Gira a sinistra">◄</button>
-                    <button class="turn-btn" id="btn-turn-right" aria-label="Gira a destra">►</button>
-                </div>
-
                 <div id="next-level-container">
                     <button id="next-level-btn">NEXT LEVEL >></button>
                 </div>
@@ -71,7 +66,7 @@
                     <p class="final-score-text">Punteggio finale: <span id="final-score-val">0</span></p>
                     
                     <div id="input-section" class="hidden">
-                        <p style="color: yellow; font-size: 0.9em; margin-bottom: 10px;">NUOVO RECORD IN TOP 10!</p>
+                        <p style="color: yellow; font-size: 0.9em; margin-bottom: 5px;">NUOVO RECORD!</p>
                         <input type="text" id="player-name" maxlength="8" placeholder="IL TUO NOME" />
                         <button id="btn-save" onclick="salvaPunteggio()">SALVA</button>
                     </div>
@@ -83,7 +78,7 @@
                         </ul>
                     </div>
                     
-                    <button id="btn-retry" onclick="riavviaGioco()" style="margin-top: 20px;">🔄 RIPROVA</button>
+                    <button id="btn-retry" onclick="riavviaGioco()">🔄 RIPROVA</button>
                 </div>
             </div>
 
