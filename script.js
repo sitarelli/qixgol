@@ -1,4 +1,4 @@
-/* script.js - v3.3: KILL ENEMIES MECHANIC */
+/* script.js - v3.4: SQUARE FIX, POWERUP SOUND & SPEED BOOST */
 
 // 1. SUPABASE
 const SUPABASE_URL = 'https://rhttiiwsouqnlwoqpcvb.supabase.co';
@@ -15,8 +15,11 @@ const MAX_LEVEL = 10;
 const POINTS_PER_LEVEL = 1000; 
 const MAX_TIME_BONUS = 500;     
 const POINTS_PER_FILL = 10;     
-const POINTS_KILL_SPIDER = 500; // Bonus uccisione ragno
-const POINTS_KILL_EVIL = 1000;  // Bonus uccisione palla nemica
+const POINTS_KILL_SPIDER = 500; 
+const POINTS_KILL_EVIL = 1000;  
+
+// NUOVO: Boost velocità per ogni nemico ucciso
+const SPEED_BOOST_PER_KILL = 0.2; // +20% velocità
 
 // Configurazione ZOOM Mobile
 const MOBILE_ZOOM_LEVEL = 1.15; 
@@ -84,10 +87,12 @@ let player = { x: Math.floor(W/2), y: H-1, drawing: false, dir: {x:0,y:0} };
 let qixList = []; 
 let evilPlayers = []; 
 
-// VARIABILI GOD MODE & CHEAT
+// VARIABILI VELOCITÀ & GOD MODE
 let cheatBuffer = "";
 let isGodMode = false;
 let cheatDetected = false; 
+let playerSpeedMult = 1.0; // Moltiplicatore velocità base
+let moveAccumulator = 0;   // Accumulatore per movimenti frazionari
 
 // Contexts
 let imgCtx = imageCanvas.getContext('2d', { alpha: false }); 
@@ -128,10 +133,13 @@ function playSound(type) {
         gainNode.gain.setValueAtTime(0.2, now); gainNode.gain.linearRampToValueAtTime(0, now + 0.6);
         osc.start(now); osc.stop(now + 0.6);
     } else if (type === 'kill') {
-        // Suono specifico per uccisione nemico (più grave e breve)
-        osc.type = 'square'; osc.frequency.setValueAtTime(150, now); osc.frequency.linearRampToValueAtTime(50, now + 0.1);
-        gainNode.gain.setValueAtTime(0.5, now); gainNode.gain.linearRampToValueAtTime(0, now + 0.2);
-        osc.start(now); osc.stop(now + 0.2);
+        // SUONO POWERUP: Onda sinusoidale che sale di frequenza (Powerup sound)
+        osc.type = 'sine'; 
+        osc.frequency.setValueAtTime(300, now); 
+        osc.frequency.exponentialRampToValueAtTime(1200, now + 0.3); // Sale veloce
+        gainNode.gain.setValueAtTime(0.4, now); 
+        gainNode.gain.linearRampToValueAtTime(0, now + 0.3);
+        osc.start(now); osc.stop(now + 0.3);
     }
 }
 
@@ -162,7 +170,6 @@ function redrawStaticLayers() {
     imgCtx.drawImage(currentBgImage, 0, 0, imageCanvas.width, imageCanvas.height);
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
     
-    // FIX MAC/IOS: Immagine + Velo nero
     gridCtx.drawImage(currentBgImage, 0, 0, gridCanvas.width, gridCanvas.height);
     gridCtx.save();
     gridCtx.fillStyle = 'rgba(0, 0, 0, 0.85)'; 
@@ -246,6 +253,10 @@ function initGame(lvl, resetLives = true){
         cheatDetected = false; 
     }
     
+    // RESET VELOCITÀ A INIZIO LIVELLO/PARTITA
+    playerSpeedMult = 1.0;
+    moveAccumulator = 0;
+
     levelStartTime = Date.now();
     flashList = []; particles = []; floatingTexts = [];
     currentPercent = 0; playerAngle = 0; playerAnimScale = 0; shakeIntensity = 0;
@@ -309,7 +320,7 @@ function initGame(lvl, resetLives = true){
     tryPlayMusic(); 
 
     if(level === 1) {
-        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 3500);
+        spawnFloatingText(generateMissionName(), W/2, H/2, 30, currentSkin.primary, 2500);
         spawnFloatingText(`SKIN: ${currentSkin.name}`, W/2, H/2 + 20, 16, '#888', 2000);
     }
     else if(level === 7) spawnFloatingText("FINAL STAGE!", W/2, H/2 - 10, 35, '#ff0000', 3000);
@@ -486,16 +497,13 @@ function drawVictory() {
     entCtx.fillText("YOU WIN!!", imageCanvas.width/2, imageCanvas.height/2); entCtx.restore();
 }
 
-// --- NUOVO ALGORITMO DI RIEMPIMENTO CON UCCISIONE NEMICI ---
 function closeStixAndFill(){
     if(stixList.length===0) return;
 
-    // 1. Marca temporaneamente il bordo appena creato come "Muro" (CLAIMED)
     for (let p of stixList) {
         grid[idx(p.x, p.y)] = CELL_CLAIMED;
     }
 
-    // 2. Trova tutte le aree connesse di spazio vuoto (Flood Fill su UNCLAIMED)
     let visited = new Uint8Array(W * H);
     let areas = [];
 
@@ -512,7 +520,6 @@ function closeStixAndFill(){
                 let cx = curr % W;
                 let cy = Math.floor(curr / W);
 
-                // Controlla vicini (Up, Down, Left, Right)
                 const neighbors = [];
                 if (cx > 0) neighbors.push(curr - 1);
                 if (cx < W - 1) neighbors.push(curr + 1);
@@ -530,20 +537,17 @@ function closeStixAndFill(){
         }
     }
 
-    if (areas.length === 0) return 0; // Non dovrebbe succedere
+    if (areas.length === 0) return 0; 
 
-    // 3. Determina quale area mantenere vuota (La più grande)
-    // Ordiniamo le aree dalla più grande alla più piccola
     areas.sort((a, b) => b.length - a.length);
 
-    let mainArea = areas[0]; // La più grande resta il "campo di gioco"
-    let capturedAreas = areas.slice(1); // Tutte le altre (più piccole) vengono conquistate
+    let mainArea = areas[0]; 
+    let capturedAreas = areas.slice(1); 
 
     let filledCount = 0;
     let rectSizeX = Math.ceil(scaleX);
     let rectSizeY = Math.ceil(scaleY);
 
-    // 4. Riempi le aree conquistate
     gridCtx.globalCompositeOperation = 'destination-out';
     gridCtx.beginPath();
 
@@ -563,7 +567,7 @@ function closeStixAndFill(){
 
     stixList = []; 
 
-    // 5. CONTROLLO UCCISIONE NEMICI (Se sono finiti in un'area CLAIMED)
+    // CONTROLLO UCCISIONE NEMICI & BOOST VELOCITÀ
     let killed = false;
 
     // Ragni
@@ -571,12 +575,15 @@ function closeStixAndFill(){
         let q = qixList[i];
         let qIdx = idx(Math.floor(q.x), Math.floor(q.y));
         if (grid[qIdx] === CELL_CLAIMED) {
-            // Ucciso!
             spawnParticles(q.x, q.y, 'explosion');
             playSound('kill'); 
             qixList.splice(i, 1);
             score += POINTS_KILL_SPIDER;
             spawnFloatingText("ENEMY KILLED!", q.x, q.y, 20, '#ff0000');
+            spawnFloatingText("SPEED UP!", q.x, q.y + 20, 20, '#00ffff', 2000);
+            
+            // SPEED BOOST
+            playerSpeedMult += SPEED_BOOST_PER_KILL;
             killed = true;
         }
     }
@@ -586,19 +593,21 @@ function closeStixAndFill(){
         let ep = evilPlayers[i];
         let epIdx = idx(Math.floor(ep.x), Math.floor(ep.y));
         if (grid[epIdx] === CELL_CLAIMED) {
-            // Ucciso!
             spawnParticles(ep.x, ep.y, 'explosion');
             playSound('kill');
             evilPlayers.splice(i, 1);
             score += POINTS_KILL_EVIL;
             spawnFloatingText("RIVAL ELIMINATED!", ep.x, ep.y, 20, '#ff0000');
+            spawnFloatingText("SPEED UP!", ep.x, ep.y + 20, 20, '#00ffff', 2000);
+
+            // SPEED BOOST
+            playerSpeedMult += SPEED_BOOST_PER_KILL;
             killed = true;
         }
     }
 
-    // Feedback sonoro e visivo riempimento
     if(filledCount > 0) {
-        if (!killed) playSound('fill'); // Suona 'fill' solo se non c'è stato 'kill'
+        if (!killed) playSound('fill'); 
         score += POINTS_PER_FILL; 
         let newPercent = getClaimPercent(); 
         spawnFloatingText(Math.floor(newPercent) + "%", player.x, player.y);
@@ -608,7 +617,6 @@ function closeStixAndFill(){
 
     updateUI(); 
 
-    // 6. CONTROLLO VITTORIA: Percentuale OPPURE Nemici azzerati
     if (getClaimPercent() >= WIN_PERCENT || (qixList.length === 0 && evilPlayers.length === 0)) { 
         winLevel(); 
     }
@@ -659,7 +667,10 @@ function resetAfterDeath(){
         stixList = []; player.drawing = false; player.dir = {x:0,y:0}; player.x = Math.floor(W/2); player.y = H-1;
         playerAnimScale = 0; 
         
-        // RESETTARE RAGNI (Ripristina lo stato iniziale del livello)
+        // RESET VELOCITÀ SU MORTE
+        playerSpeedMult = 1.0; 
+        moveAccumulator = 0;
+
         qixList = []; 
         let numSpiders = 1;
         if (level >= 8) numSpiders = 4; else if (level >= 7) numSpiders = 3; else if (level >= 5) numSpiders = 2; 
@@ -753,7 +764,9 @@ function tickPlayer(){
     if(curType===CELL_CLAIMED && nextType===CELL_UNCLAIMED){ player.drawing = true; }
     if(player.drawing && nextType===CELL_CLAIMED){
         player.x = nx; player.y = ny; const filled = closeStixAndFill(); player.drawing = false; 
-        updateUI(); if(getClaimPercent() >= WIN_PERCENT){ winLevel(); } return;
+        updateUI(); 
+        // CONTROLLO VITTORIA AGGIORNATO (Percentuale o 0 nemici è gestito in closeStixAndFill)
+        return;
     }
     if(player.drawing){ 
         const nextId = idx(nx, ny);
@@ -775,7 +788,23 @@ let lastTime = performance.now(); let deltaTime = 0;
 function gameLoop(now){
     if (!isPlaying && !isVictory) return;
     deltaTime = now - lastTime; lastTime = now;
-    if (!isDying && !isVictory) { moveQix(); tickPlayer(); checkCollisions(); }
+    if (!isDying && !isVictory) { 
+        moveQix(); 
+        
+        // --- LOGICA VELOCITÀ AUMENTATA (Accumulatore) ---
+        moveAccumulator += (1 * playerSpeedMult); // Incrementa in base alla velocità
+        
+        // Esegue il movimento tante volte quanto accumulato
+        // Es: se speed è 1.5, ogni 2 frame farà 2 passi invece di 1
+        while (moveAccumulator >= 1) {
+            tickPlayer();
+            checkCollisions(); // Controlla collisioni ad ogni micro-passo
+            moveAccumulator -= 1;
+            
+            // Se muore durante i passi multipli, ferma tutto
+            if(isDying || isVictory) break; 
+        }
+    }
     if(!isVictory) draw();
     requestAnimationFrame(gameLoop);
 }

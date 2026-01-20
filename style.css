@@ -127,20 +127,31 @@ body {
     opacity: 0.5;
 }
 
+
 /* --- QUADRATO DI GIOCO --- */
 #game-wrapper {
     position: relative;
-    width: 80vmin; 
-    height: 80vmin;
+    /* FIX IPHONE: Usa aspect-ratio per forzare il quadrato perfetto */
+    aspect-ratio: 1 / 1;
+    
+    /* La dimensione è il minimo tra il 90% della larghezza o il 65% dell'altezza */
+    width: min(90vw, 65vh);
+    height: auto; /* L'altezza si calcola in automatico grazie ad aspect-ratio */
+    
     max-width: 800px;
-    max-height: 800px;
     border: 2px solid var(--primary);
     box-shadow: 0 0 20px rgba(0, 243, 255, 0.15);
     background: #000;
-    
-    /* IMPORTANTE: Nasconde le parti zoomate che escono dai bordi */
     overflow: hidden; 
+    margin: 10px auto 20px auto; /* Centratura */
 }
+
+
+
+
+
+
+
 
 /* NUOVO: Layer che contiene i canvas e viene trasformato (zoom/pan) */
 #camera-layer {
