@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>QUIXGOL</title>
     
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
@@ -21,6 +21,32 @@
     
     <meta property="og:url" content="https://sitarelli.github.io/quixgol/">
     <meta name="twitter:card" content="summary_large_image">
+
+    <style>
+        /* STILE AGGIUNTIVO PER IL PULSANTE DI AVVIO */
+        #start-game-btn {
+            margin-top: 20px;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-family: 'Orbitron', sans-serif;
+            background-color: #00f3ff;
+            color: #000;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(0, 243, 255, 0.5);
+            transition: transform 0.2s;
+            animation: pulse-cyan 2s infinite;
+        }
+
+        @keyframes pulse-cyan {
+            0% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 243, 255, 0.5); }
+            50% { transform: scale(1.05); box-shadow: 0 0 35px rgba(0, 243, 255, 0.8); }
+            100% { transform: scale(1); box-shadow: 0 0 20px rgba(0, 243, 255, 0.5); }
+        }
+
+        #start-game-btn:active { transform: scale(0.95); }
+    </style>
 </head>
 <body>
 
@@ -31,7 +57,7 @@
                 <div id="loading-bar"></div>
             </div>
             <div id="loading-text">CARICAMENTO...</div>
-            <button id="start-game-btn" style="display:none;">GIOCA ORA</button>
+            <button id="start-game-btn" style="display:none;" onclick="enterFullscreenAndStart()">GIOCA ORA</button>
         </div>
     </div>
 
@@ -64,11 +90,6 @@
                     <div class="value-big" id="ui-percent">0%</div>
                 </div>
             </div>
-
-
-
-
-
 
             <div id="game-wrapper">
                 <div id="camera-layer">
@@ -113,6 +134,29 @@
     <audio id="gameover-sound">
         <source src="gameover.mp3" type="audio/mp3">
     </audio>
+
+    <script>
+        function enterFullscreenAndStart() {
+            const elem = document.documentElement;
+            
+            // Attiva Fullscreen
+            if (elem.requestFullscreen) {
+                elem.requestFullscreen();
+            } else if (elem.webkitRequestFullscreen) { /* Safari */
+                elem.webkitRequestFullscreen();
+            } else if (elem.msRequestFullscreen) { /* IE11 */
+                elem.msRequestFullscreen();
+            }
+
+            // Chiama la funzione originale del gioco che nasconde il caricamento e avvia
+            // Nota: Se 'startGame()' è il nome della funzione nel tuo script.js, la chiamiamo qui.
+            // In base al tuo HTML precedente, il bottone non aveva un onclick ma probabilmente
+            // un listener in script.js. Per sicurezza, simuliamo il click sul comportamento originale.
+            if (typeof avviaGiocoOriginale === "function") {
+                avviaGiocoOriginale();
+            }
+        }
+    </script>
 
     <script src="script.js"></script>
 </body>
