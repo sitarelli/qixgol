@@ -484,3 +484,38 @@ canvas {
 #leaderboard-list li span:last-child {
     font-family: 'Share Tech Mono', monospace;
 }
+
+/* --- CONTROLLI MOBILE --- */
+#mobile-controls {
+    display: none; /* Nascosto su PC */
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    margin-top: 15px; /* Stacca i tasti dal gioco */
+    z-index: 100;
+}
+
+.dpad-row { display: flex; gap: 5px; }
+
+.dpad-btn {
+    width: 60px; height: 60px;
+    background: rgba(0, 20, 40, 0.9);
+    border: 2px solid var(--primary);
+    color: var(--primary);
+    font-size: 24px;
+    border-radius: 10px;
+    cursor: pointer;
+    touch-action: manipulation; /* Risposta rapida al tocco */
+}
+
+.dpad-btn:active { background: var(--primary); color: #000; }
+
+/* REGOLE SPECIFICHE MOBILE */
+@media (max-width: 768px) {
+    #mobile-controls { display: flex; } /* Appare solo qui */
+    
+    .center-col {
+        justify-content: flex-start !important; /* Spinge tutto in alto */
+        padding-top: 10px;
+    }
+}

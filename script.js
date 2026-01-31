@@ -24,7 +24,7 @@ const POINTS_KILL_EVIL = 1000;
 const SPEED_BOOST_PER_KILL = 0.25; 
 
 // Configurazione ZOOM Mobile
-const MOBILE_ZOOM_LEVEL = 1.15; 
+const MOBILE_ZOOM_LEVEL = 1; 
 const MOBILE_BREAKPOINT = 768;
 
 const CELL_UNCLAIMED = 0; const CELL_CLAIMED = 1; const CELL_STIX = 2;
@@ -193,9 +193,17 @@ function redrawStaticLayers() {
 }
 
 function resizeCanvases() {
-    const winW = window.innerWidth;
+const winW = window.innerWidth;
     const winH = window.innerHeight;
-    let size = Math.min(winW * 0.9, winH * 0.65);
+
+    // NUOVO CALCOLO MOBILE
+    const isMobile = winW < MOBILE_BREAKPOINT;
+    const availW = isMobile ? winW - 10 : winW * 0.65;
+    // SU MOBILE: Sottrai 220px all'altezza per lasciare spazio fisico alle frecce
+    const availH = isMobile ? (winH - 240) : winH * 0.75;
+
+    let size = Math.min(availW, availH);
+    if (size < 200) size = 200; // Sicurezza minima
     if (size > 650) size = 650;
 
     gameWrapper.style.width = Math.floor(size) + "px";
@@ -996,3 +1004,28 @@ if(startBtn) {
     });
 }
 window.addEventListener('resize', resizeCanvases);
+
+// --- ATTIVAZIONE TASTI A SCHERMO ---
+window.addEventListener('load', () => {
+    const dpadMoves = {
+        'btn-up': {x: 0, y: -1},
+        'btn-down': {x: 0, y: 1},
+        'btn-left': {x: -1, y: 0},
+        'btn-right': {x: 1, y: 0}
+    };
+
+    Object.keys(dpadMoves).forEach(id => {
+        const btn = document.getElementById(id);
+        if(!btn) return;
+
+        const triggerMove = (e) => {
+            if(e.cancelable) e.preventDefault();
+            if(player && isPlaying && !isDying) {
+                player.dir = dpadMoves[id];
+            }
+        };
+
+        btn.addEventListener('touchstart', triggerMove, {passive: false});
+        btn.addEventListener('mousedown', triggerMove);
+    });
+});
