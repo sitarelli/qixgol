@@ -270,7 +270,7 @@ function initGame(lvl, resetLives = true){
         cheatDetected = false; 
     }
     
-    playerSpeedMult = 1;
+    playerSpeedMult = 1.8;
     moveAccumulator = 0;
 
     levelStartTime = Date.now();
@@ -747,7 +747,7 @@ function moveQix(){
         
         // MODIFICA: Difficoltà e Cap Velocità
         const difficultyMultiplier = Math.min(3.0, 1 + ((level - 1) * 0.05)); 
-        const maxSpeed = 1.5 * difficultyMultiplier; 
+        const maxSpeed = 1.8 * difficultyMultiplier; 
         const s = Math.hypot(q.vx, q.vy); if(s > maxSpeed){ q.vx *= maxSpeed/s; q.vy *= maxSpeed/s; }
     }
     
@@ -758,7 +758,7 @@ function moveQix(){
         ep.x += ep.vx; ep.y += ep.vy; 
         if(Math.random() < 0.02) { ep.vx += (Math.random() - 0.5) * 1.5; ep.vy += (Math.random() - 0.5) * 1.5; }
         
-        const maxSpeed = 1.4 + (level * 0.05); 
+        const maxSpeed = 1.8 + (level * 0.05); 
         const s = Math.hypot(ep.vx, ep.vy); if(s > maxSpeed){ ep.vx *= maxSpeed/s; ep.vy *= maxSpeed/s; }
     }
 }
