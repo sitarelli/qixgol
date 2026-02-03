@@ -12,8 +12,8 @@
 </head>
 <body>
 <p class="p1">{</p>
-<p class="p1"><span class="Apple-converted-space">  </span>"name": "QUIXGOL",</p>
-<p class="p1"><span class="Apple-converted-space">  </span>"short_name": "QUIXGOL",</p>
+<p class="p1"><span class="Apple-converted-space">  </span>"name": "QIXGOL",</p>
+<p class="p1"><span class="Apple-converted-space">  </span>"short_name": "QIXGOL",</p>
 <p class="p1"><span class="Apple-converted-space">  </span>"description": "Revival arcade game creato con AI",</p>
 <p class="p1"><span class="Apple-converted-space">  </span>"start_url": "index.html",</p>
 <p class="p1"><span class="Apple-converted-space">  </span>"display": "standalone",</p>
