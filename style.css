@@ -68,6 +68,7 @@ body {
     max-width: 25vw;
     display: block;
     image-rendering: -webkit-optimize-contrast; 
+margin-bottom: -10px; /* Prova -10px, -20px o -30px finché non ti piace */
 }
 
 .hud-group {
