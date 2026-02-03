@@ -63,9 +63,9 @@ body {
 }
 
 #game-logo {
-    max-height: 80px;
+    max-height: 150px;
     width: auto;
-    max-width: 60vw;
+    max-width: 25vw;
     display: block;
     image-rendering: -webkit-optimize-contrast; 
 }
@@ -239,7 +239,7 @@ canvas {
     }
     
     #game-logo {
-        max-height: 50px; 
+        max-height: 200px; 
     }
 
     

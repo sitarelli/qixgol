@@ -250,17 +250,31 @@ function initGame(lvl, resetLives = true){
     if(gameOverScreen) gameOverScreen.classList.add('hidden');
     level = lvl;
 
-    // Gestione Musica
-    if (bgMusic) {
-        let nuovaMusica = (level % 10 >= 5) ? 'part2.mp3' : 'soundtrack.mp3';
-        if (!bgMusic.src.includes(nuovaMusica)) {
-            bgMusic.src = nuovaMusica;
-            bgMusic.load();
-            if (isMusicOn) {
-                bgMusic.play().catch(e => console.log("Errore musica:", e));
-            }
+// Gestione Musica
+if (bgMusic) {
+    // Creiamo un ciclo di 24 livelli (dal 25-esimo si ricomincia)
+    let ciclo = ((level - 1) % 24) + 1; 
+    let nuovaMusica;
+
+    if (ciclo >= 20) {
+        nuovaMusica = 'part4.mp3';  // Livelli 20-24
+    } else if (ciclo >= 15) {
+        nuovaMusica = 'part3.mp3';  // Livelli 15-19
+    } else if (ciclo >= 5) {
+        nuovaMusica = 'part2.mp3';  // Livelli 5-14
+    } else {
+        nuovaMusica = 'soundtrack.mp3'; // Livelli 1-4
+    }
+
+    // Se il brano calcolato è diverso da quello attualmente in riproduzione, lo cambia
+    if (!bgMusic.src.includes(nuovaMusica)) {
+        bgMusic.src = nuovaMusica;
+        bgMusic.load();
+        if (isMusicOn) {
+            bgMusic.play().catch(e => console.log("Errore musica:", e));
         }
     }
+}
 
     if (resetLives) { 
         lives = START_LIVES; 
