@@ -693,40 +693,40 @@ function resetAfterDeath(){
         playerSpeedMult = 1.8; 
         moveAccumulator = 0;
 
-        qixList = []; 
+        // --- MODIFICA QUI ---
+        // INVECE DI RIGENERARE TUTTO, MANTENIAMO QUELLI VIVI
+        // E LI SPOSTIAMO SOLO ALLA POSIZIONE INIZIALE PER SICUREZZA
         
-        // Rigenera nemici con logica infinita
-        let numSpiders = Math.min(15, 1 + Math.floor((level - 1) / 3));
+        // 1. Gestione RAGNI sopravvissuti
+        // (Rimuoviamo: qixList = [] e il ciclo for di generazione)
+        qixList.forEach((q, i) => {
+            // Li rimettiamo alla posizione di partenza calcolata come all'inizio
+            // per evitare che siano sopra al giocatore al respawn
+            let startX = Math.floor(W * 0.3) + (i * 20); 
+            let startY = Math.floor(H * 0.3) + (i * 10);
+            if(startX >= W-2) startX = W-10; 
+            if(startY >= H-2) startY = H-10;
+            
+            q.x = startX;
+            q.y = startY;
+            // Opzionale: se vuoi resettare anche la direzione, scommenta sotto, 
+            // altrimenti mantengono la loro inerzia caotica:
+            // let baseSpeed = 0.4 + (level * 0.02);
+            // q.vx = (Math.random() * 0.8 + baseSpeed) * (Math.random() < 0.5 ? -1 : 1);
+            // q.vy = (Math.random() * 0.8 + baseSpeed) * (Math.random() < 0.5 ? -1 : 1);
+        });
 
-        for(let i=0; i<numSpiders; i++) {
-            let startX = Math.floor(W * 0.3) + (i * 20); let startY = Math.floor(H * 0.3) + (i * 10);
-            if(startX >= W-2) startX = W-10; if(startY >= H-2) startY = H-10;
-            let baseSpeed = 0.4 + (level * 0.02);
-            qixList.push({
-                x: startX, y: startY,
-                vx: (Math.random() * 0.8 + baseSpeed) * (Math.random() < 0.5 ? -1 : 1),
-                vy: (Math.random() * 0.8 + baseSpeed) * (Math.random() < 0.5 ? -1 : 1)
-            });
-        }
-        
-        evilPlayers = [];
-        let numEvilBalls = 0;
-        if (level >= 9) {
-            numEvilBalls = 1 + Math.floor((level - 9) / 5);
-            if (numEvilBalls > 5) numEvilBalls = 5; 
-        }
-
-        for (let i = 0; i < numEvilBalls; i++) {
+        // 2. Gestione PALLE MALVAGIE sopravvissute
+        // (Rimuoviamo: evilPlayers = [] e il ciclo for di generazione)
+        evilPlayers.forEach(ep => {
             let ex = Math.floor(W/2) + (Math.random() > 0.5 ? 40 : -40);
             let ey = Math.floor(H/3);
-            evilPlayers.push({
-                x: ex, y: ey,
-                vx: (Math.random() * 0.9 + 0.5) * (Math.random() < 0.5 ? -1 : 1),
-                vy: (Math.random() * 0.9 + 0.5) * (Math.random() < 0.5 ? -1 : 1),
-                angle: 0
-            });
-        }
+            ep.x = ex;
+            ep.y = ey;
+            ep.angle = 0;
+        });
         
+        // Pulizia griglia dai tracciati non finiti (rimane invariato)
         for(let i=0; i<grid.length; i++) {
             if(grid[i]===CELL_STIX) {
                 grid[i] = CELL_UNCLAIMED;
@@ -737,7 +737,6 @@ function resetAfterDeath(){
         flashList = [];
     }
 }
-
 function drawVictory() {
     entCtx.save();
     entCtx.clearRect(0, 0, entityCanvas.width, entityCanvas.height);
@@ -1053,5 +1052,6 @@ window.addEventListener('load', () => {
     });
 
 });
+
 
 
