@@ -256,9 +256,9 @@ if (bgMusic) {
     let ciclo = ((level - 1) % 24) + 1; 
     let nuovaMusica;
 
-    if (ciclo >= 20) {
+    if (ciclo >= 15) {
         nuovaMusica = 'part4.mp3';  // Livelli 20-24
-    } else if (ciclo >= 15) {
+    } else if (ciclo >= 10) {
         nuovaMusica = 'part3.mp3';  // Livelli 15-19
     } else if (ciclo >= 5) {
         nuovaMusica = 'part2.mp3';  // Livelli 5-14
