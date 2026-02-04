@@ -1042,33 +1042,66 @@ if(startBtn) {
         setTimeout(() => { if(loadingScreen) loadingScreen.style.display = 'none'; startGame(); }, 500);
     });
 }
-window.addEventListener('resize', resizeCanvases);
 
-// --- ATTIVAZIONE TASTI A SCHERMO ---
+
 window.addEventListener('load', () => {
-    const dpadMoves = {
-        'btn-up': {x: 0, y: -1},
-        'btn-down': {x: 0, y: 1},
-        'btn-left': {x: -1, y: 0},
-        'btn-right': {x: 1, y: 0}
+    const container = document.getElementById('joystick-container');
+    const stick = document.getElementById('joystick-stick');
+    let active = false;
+    let startX, startY;
+
+    // Funzione che calcola la direzione
+    const handleInput = (clientX, clientY) => {
+        if (!active) return;
+        
+        const rect = container.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        
+        const dx = clientX - centerX;
+        const dy = clientY - centerY;
+        
+        // Calcola la distanza dal centro per limitare il movimento dello stick visivo
+        const distance = Math.min(Math.sqrt(dx*dx + dy*dy), 30); // 30px è il raggio massimo visivo
+        const angle = Math.atan2(dy, dx);
+        
+        // Muove lo stick visivamente
+        const moveX = Math.cos(angle) * distance;
+        const moveY = Math.sin(angle) * distance;
+        stick.style.transform = `translate(${moveX}px, ${moveY}px)`;
+
+        // Logica di Gioco (Direzione) - Soglia di sensibilità 10px
+        if (Math.abs(dx) > Math.abs(dy)) {
+            if (dx > 10) nextDir = {x: 1, y: 0};      // Destra
+            else if (dx < -10) nextDir = {x: -1, y: 0}; // Sinistra
+        } else {
+            if (dy > 10) nextDir = {x: 0, y: 1};      // Giù
+            else if (dy < -10) nextDir = {x: 0, y: -1}; // Su
+        }
     };
 
-    Object.keys(dpadMoves).forEach(id => {
-        const btn = document.getElementById(id);
-        if(!btn) return;
+    // Eventi Touch
+    container.addEventListener('touchstart', (e) => {
+        active = true;
+        handleInput(e.touches[0].clientX, e.touches[0].clientY);
+        e.preventDefault(); // Evita scroll pagina
+    }, {passive: false});
 
-        const triggerMove = (e) => {
-            if(e.cancelable) e.preventDefault();
-            if(player && isPlaying && !isDying) {
-                player.dir = dpadMoves[id];
-            }
-        };
+    container.addEventListener('touchmove', (e) => {
+        if(active) {
+            handleInput(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault();
+        }
+    }, {passive: false});
 
-        btn.addEventListener('touchstart', triggerMove, {passive: false});
-        btn.addEventListener('mousedown', triggerMove);
-    });
+    // Reset quando si lascia il dito
+    const resetJoystick = () => {
+        active = false;
+        stick.style.transform = 'translate(0,0)';
+    };
 
+    container.addEventListener('touchend', resetJoystick);
+    container.addEventListener('touchcancel', resetJoystick);
 });
-
 
 
