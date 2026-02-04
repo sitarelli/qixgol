@@ -830,7 +830,9 @@ function tickPlayer(){
 
 let lastTime = performance.now(); let deltaTime = 0;
 function gameLoop(now){
+
     if (!isPlaying && !isVictory) return;
+if (now - lastTime < 16) { requestAnimationFrame(gameLoop); return; }
     deltaTime = now - lastTime; lastTime = now;
     if (!isDying && !isVictory) { 
         moveQix(); 
@@ -1052,7 +1054,6 @@ window.addEventListener('load', () => {
     });
 
 });
-
 
 
 
