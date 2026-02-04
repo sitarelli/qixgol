@@ -178,6 +178,14 @@ margin-bottom: -10px; /* Prova -10px, -20px o -30px finché non ti piace */
 }
 
 @media (max-width: 768px) {
+
+#header-row {
+        flex-direction: column; /* Mette gli elementi uno sotto l'altro invece che affiancati */
+        align-items: center;
+        gap: 10px;
+    }
+}
+
     #game-wrapper {
         width: 90vw; /* Su mobile usiamo la larghezza come riferimento */
         height: 90vw; /* Forziamo l'altezza uguale alla larghezza */
