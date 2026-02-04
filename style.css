@@ -63,9 +63,9 @@ body {
 }
 
 #game-logo {
-    max-height: 150px;
+    max-height: 100px;
     width: auto;
-    max-width: 25vw;
+    max-width: 50vw;
     display: block;
     image-rendering: -webkit-optimize-contrast; 
 margin-bottom: -10px; /* Prova -10px, -20px o -30px finché non ti piace */
@@ -297,7 +297,7 @@ canvas {
 
 /* --- MEDIA QUERY (Schermi molto bassi) --- */
 @media (max-height: 600px) {
-    #game-logo { max-height: 30px; }
+    #game-logo { max-height: 100px; }
     #header-row { margin-bottom: 0px; }
     .label-mini { display: none; } 
     
