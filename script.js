@@ -619,17 +619,35 @@ function closeStixAndFill(){
         }
     }
 
-    // PALLE NEMICHE
+// PALLE NEMICHE
     for (let i = evilPlayers.length - 1; i >= 0; i--) {
         let ep = evilPlayers[i];
         let epIdx = idx(Math.floor(ep.x), Math.floor(ep.y));
         if (grid[epIdx] === CELL_CLAIMED) {
+            
+            // --- 1. EFFETTO VISIVO "FIGO" (Esplosione doppia) ---
             spawnParticles(ep.x, ep.y, 'explosion');
-            playSound('kill');
+            // Creiamo una seconda ondata di particelle dopo 150ms per un effetto più ricco
+            setTimeout(() => spawnParticles(ep.x, ep.y, 'explosion'), 150);
+
+            // --- 2. SUONO DOPPIO (Effetto Bonus) ---
+            playSound('kill'); 
+            // Suoniamo di nuovo lo stesso suono con un piccolo ritardo: crea un "ritmo" da bonus
+            setTimeout(() => playSound('kill'), 120); 
+
+            // --- 3. LOGICA DI GIOCO ---
             evilPlayers.splice(i, 1);
             score += POINTS_KILL_EVIL;
-            spawnFloatingText("RIVAL ELIMINATED!", ep.x, ep.y, 20, '#ff0000');
-            spawnFloatingText("SPEED UP!", ep.x, ep.y + 20, 20, '#00ffff', 2000);
+            lives++;     // Bonus vita!
+            updateUI();  // Aggiorna il numero a schermo
+
+            // --- 4. FEEDBACK TESTUALE (Pulito e ordinato) ---
+            // LIFE UP: Verde brillante, più grande, con le stelline, spostato in alto
+            spawnFloatingText("⭐ LIFE UP! +1 ⭐", ep.x, ep.y - 25, 30, '#00ff00', 3000);
+            
+            // SPEED UP: Azzurro, posizionato leggermente sotto
+            spawnFloatingText("SPEED UP!", ep.x, ep.y + 15, 20, '#00ffff', 2000);
+
             playerSpeedMult = Math.min(4.5, playerSpeedMult + SPEED_BOOST_PER_KILL);
             killed = true;
         }
