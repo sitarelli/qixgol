@@ -250,6 +250,12 @@ function initGame(lvl, resetLives = true){
     if(gameOverScreen) gameOverScreen.classList.add('hidden');
     level = lvl;
 
+// --- NUOVO CODICE: CAMBIO SFONDO PAGINA ---
+    // Calcola un numero da 1 a 20 basato sul livello (es. liv 21 usa pattern 1)
+    let patternIndex = ((level - 1) % 20) + 1;
+    document.body.style.backgroundImage = `url('png/pattern${patternIndex}.png')`;
+    // ------------------------------------------
+
 // Gestione Musica
 if (bgMusic) {
     // Creiamo un ciclo di 24 livelli (dal 25-esimo si ricomincia)
