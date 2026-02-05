@@ -373,11 +373,11 @@ if (bgMusic) {
 
     requestAnimationFrame(gameLoop);
     
-    if (window.innerWidth <= MOBILE_BREAKPOINT) {
-        setTimeout(() => {
-            if(player.dir.x === 0 && player.dir.y === 0) player.dir = {x: 0, y: -1};
-        }, 300);
-    }
+   // if (window.innerWidth <= MOBILE_BREAKPOINT) {
+    //    setTimeout(() => {
+     //       if(player.dir.x === 0 && player.dir.y === 0) player.dir = {x: 0, y: -1};
+     //   }, 300);
+   // }
 }
 
 function updateUI(){
@@ -1084,15 +1084,14 @@ window.addEventListener('load', () => {
         }
     };
 
-    // --- EVENTI ---
+ // --- EVENTI JOYSTICK ---
     const startInput = (e) => {
-        e.preventDefault();
+        if (e.cancelable) e.preventDefault();
         active = true;
         const rect = container.getBoundingClientRect();
         centerX = rect.left + rect.width / 2;
         centerY = rect.top + rect.height / 2;
         
-        // Gestione mouse o touch
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         updateDirection(clientX, clientY);
@@ -1100,7 +1099,7 @@ window.addEventListener('load', () => {
 
     const moveInput = (e) => {
         if (!active) return;
-        e.preventDefault(); // Blocca lo scroll
+        if (e.cancelable) e.preventDefault();
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
         const clientY = e.touches ? e.touches[0].clientY : e.clientY;
         updateDirection(clientX, clientY);
@@ -1109,62 +1108,84 @@ window.addEventListener('load', () => {
     const stopInput = () => {
         active = false;
         stick.style.transform = `translate(0px, 0px)`;
+        // AGGIUNTO: Ferma la palla quando molli il joystick
+        if (typeof player !== 'undefined') player.dir = { x: 0, y: 0 };
     };
 
-    // TOUCH (Mobile) - "passive: false" è cruciale per bloccare lo scroll
     container.addEventListener('touchstart', startInput, {passive: false});
     document.addEventListener('touchmove', moveInput, {passive: false});
     document.addEventListener('touchend', stopInput);
-
-    // MOUSE (PC per test)
     container.addEventListener('mousedown', startInput);
     document.addEventListener('mousemove', moveInput);
     document.addEventListener('mouseup', stopInput);
 
-// ===============================
-// MOBILE FALLBACK DIRECTION FIX
-// ===============================
+    // ===============================
+    // MOBILE FALLBACK DIRECTION FIX
+    // ===============================
+    let touchStartX2 = 0;
+    let touchStartY2 = 0;
+    let touchActive2 = false;
 
-let touchStartX2 = 0;
-let touchStartY2 = 0;
-let touchActive2 = false;
+    window.addEventListener('touchstart', (e) => {
+        if (e.target.closest('button')) return;
+        const t = e.touches[0];
+        touchStartX2 = t.clientX;
+        touchStartY2 = t.clientY;
+        touchActive2 = true;
+        tryPlayMusic();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+    }, { passive: false });
 
-window.addEventListener('touchstart', (e) => {
-    if (e.target.closest('button')) return;
+    window.addEventListener('touchmove', (e) => {
+        if (!touchActive2) return;
+        if (e.cancelable) e.preventDefault();
+        const t = e.touches[0];
+        const dx = t.clientX - touchStartX2;
+        const dy = t.clientY - touchStartY2;
+        const absX = Math.abs(dx);
+        const absY = Math.abs(dy);
+        const DEADZONE = 12;
+        if (absX < DEADZONE && absY < DEADZONE) return;
+        if (absX > absY) {
+            player.dir = { x: dx > 0 ? 1 : -1, y: 0 };
+        } else {
+            player.dir = { x: 0, y: dy > 0 ? 1 : -1 };
+        }
+    }, { passive: false });
 
-    const t = e.touches[0];
-    touchStartX2 = t.clientX;
-    touchStartY2 = t.clientY;
-    touchActive2 = true;
+    window.addEventListener('touchend', () => {
+        touchActive2 = false;
+        // AGGIUNTO: Ferma la palla quando molli lo swipe
+        if (typeof player !== 'undefined') player.dir = { x: 0, y: 0 };
+    });
 
-    tryPlayMusic();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-}, { passive: false });
+    // ===============================
+    // TASTI A SCHERMO
+    // ===============================
+    const dpadMoves = {
+        'btn-up': {x: 0, y: -1},
+        'btn-down': {x: 0, y: 1},
+        'btn-left': {x: -1, y: 0},
+        'btn-right': {x: 1, y: 0}
+    };
 
-window.addEventListener('touchmove', (e) => {
-    if (!touchActive2) return;
-    e.preventDefault();
+    Object.keys(dpadMoves).forEach(id => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            const start = (e) => {
+                if (e.cancelable) e.preventDefault();
+                if (typeof player !== 'undefined') player.dir = dpadMoves[id];
+            };
+            const stop = (e) => {
+                if (e.cancelable) e.preventDefault();
+                if (typeof player !== 'undefined') player.dir = { x: 0, y: 0 };
+            };
+            btn.addEventListener('touchstart', start, { passive: false });
+            btn.addEventListener('mousedown', start);
+            btn.addEventListener('touchend', stop, { passive: false });
+            btn.addEventListener('mouseup', stop);
+            btn.addEventListener('mouseleave', stop);
+        }
+    });
 
-    const t = e.touches[0];
-    const dx = t.clientX - touchStartX2;
-    const dy = t.clientY - touchStartY2;
-
-    const absX = Math.abs(dx);
-    const absY = Math.abs(dy);
-    const DEADZONE = 12;
-
-    if (absX < DEADZONE && absY < DEADZONE) return;
-
-    if (absX > absY) {
-        player.dir = { x: dx > 0 ? 1 : -1, y: 0 };
-    } else {
-        player.dir = { x: 0, y: dy > 0 ? 1 : -1 };
-    }
-}, { passive: false });
-
-window.addEventListener('touchend', () => {
-    touchActive2 = false;
-});
-
-
-});
+}); // Fine del file
