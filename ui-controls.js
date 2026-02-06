@@ -4,6 +4,7 @@
 async function gestisciFinePartita(vittoria) {
     if(!gameOverScreen) { alert("GAME OVER! Punteggio: " + score); window.location.reload(); return; }
     gameOverScreen.classList.remove('hidden'); finalScoreVal.innerText = score;
+    gameOverTime = Date.now();  // Salva il momento in cui appare il game over
     // Se si muore, si muore (ma teoricamente non si vince mai definitivamente ora)
     if (vittoria) { endTitle.innerText = "HAI VINTO!"; endTitle.style.color = "#00ff00"; } 
     else { endTitle.innerText = "GAME OVER"; endTitle.style.color = "red"; }

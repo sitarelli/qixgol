@@ -284,14 +284,14 @@ function drawVictory() {
             }
         }
         
-        // Testo VICTORY pulsante (RIDOTTO DIMENSIONE)
+        // Testo VICTORY pulsante (RIDOTTO DIMENSIONE, SPOSTATO IN BASSO)
         let pulse = 1 + Math.sin(victoryAnimTimer * 0.1) * 0.15;
-        let fontSize = Math.floor(Math.min(entityCanvas.width, entityCanvas.height) / 7 * pulse); // Era /5, ora /7
+        let fontSize = Math.floor(Math.min(entityCanvas.width, entityCanvas.height) / 12 * pulse); // Ridotto da /7 a /12 per font più piccolo
 
-let offsetY = 150; 
-    let baseCenterY = (entityCanvas.height / 2) + offsetY;
+        // Posizione nella parte medio-bassa dello schermo (70% dall'alto)
+        let textYPosition = entityCanvas.height * 0.70;
 
-        entCtx.font = `bold ${fontSize}px Arial, sans-serif`; // Font più paffuto
+        entCtx.font = `900 ${fontSize}px Arial Black, Arial, sans-serif`; // Font extra-bold (900) per aspetto paffuto
         entCtx.textAlign = 'center'; 
         entCtx.textBaseline = 'middle';
         
@@ -300,13 +300,13 @@ let offsetY = 150;
         entCtx.shadowBlur = 30 + Math.sin(victoryAnimTimer * 0.15) * 20;
         
         entCtx.fillStyle = '#00ff00';
-        entCtx.fillText("COMPLETED", entityCanvas.width / 2, entityCanvas.height / 2 - fontSize * 0.1);
+        entCtx.fillText("COMPLETED", entityCanvas.width / 2, textYPosition);
         
         // Sottotitolo (MOLTO PIÙ PICCOLO)
         entCtx.shadowBlur = 10;
-        entCtx.font = `bold ${fontSize * 0.25}px Arial, sans-serif`; // Era 0.2, ora 0.25
+        entCtx.font = `bold ${fontSize * 0.35}px Arial, sans-serif`; // Leggermente più grande per leggibilità
         entCtx.fillStyle = '#ffff00';
-        entCtx.fillText("Premi freccia per continuare", entityCanvas.width / 2, entityCanvas.height / 2 + fontSize * 0.5);
+        entCtx.fillText("Premi freccia per continuare", entityCanvas.width / 2, textYPosition + fontSize * 0.7);
     }
     
     entCtx.restore();

@@ -23,6 +23,9 @@ let player = { x: Math.floor(W/2), y: H-1, drawing: false, dir: {x:0,y:0} };
 let qixList = []; 
 let evilPlayers = []; 
 
+// Variabile per tracciare quando appare il game over
+let gameOverTime = 0; 
+
 // VARIABILI VELOCITÀ & GOD MODE
 let cheatBuffer = "";
 let isGodMode = false;

@@ -15,13 +15,23 @@ window.addEventListener('keydown', (e)=>{
         console.log("God Mode Activated!");
     }
 
-    // ⌨️ FRECCE PER PROSEGUIRE LIVELLO
+    // ⌨️ FRECCE PER PROSEGUIRE LIVELLO O RIAVVIARE DOPO GAME OVER
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)) {
         // Se siamo in vittoria e il bottone è visibile, vai al prossimo livello
         if(isVictory && nextLevelContainer && nextLevelContainer.style.display === 'block') {
             initGame(level + 1, false);
             e.preventDefault();
             return;
+        }
+        
+        // Se è apparso il game over e sono passati almeno 5 secondi, riavvia
+        if(gameOverScreen && !gameOverScreen.classList.contains('hidden')) {
+            const timeElapsed = Date.now() - gameOverTime;
+            if(timeElapsed >= 5000) {  // 5000ms = 5 secondi
+                window.location.reload();  // Riavvia il gioco
+                e.preventDefault();
+                return;
+            }
         }
         
         // Altrimenti comportamento normale
