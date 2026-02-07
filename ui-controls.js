@@ -85,7 +85,42 @@ window.salvaPunteggio = async function() {
     }
 }
 
-window.riavviaGioco = function() { window.location.reload(); }
+window.riavviaGioco = function() { 
+    // Nascondi schermata game over
+    if(gameOverScreen) gameOverScreen.classList.add('hidden');
+    
+    // Ferma il suono di game over
+    if(gameoverSound) {
+        gameoverSound.pause();
+        gameoverSound.currentTime = 0;
+    }
+    
+    // Riavvia la musica di sottofondo
+    if(bgMusic && isMusicOn) {
+        bgMusic.currentTime = 0;
+        bgMusic.play().catch(e => console.log("Audio bloccato"));
+    }
+    
+    // Resetta le variabili di gioco
+    lives = START_LIVES;
+    score = 0;
+    level = 1;
+    isPlaying = false;
+    isDying = false;
+    isVictory = false;
+    gameOverTime = 0;
+    isGodMode = false;
+    cheatDetected = false;
+    playerSpeedMult = 1.8;
+    
+    // Riavvia il gioco dal livello 1
+    initGame(1, true);
+    
+    // Imposta direzione iniziale dopo un breve delay
+    setTimeout(() => {
+        player.dir = {x: 0, y: -1};
+    }, 200);
+}
 
 if(nextLevelBtn) nextLevelBtn.addEventListener('click', () => { initGame(level + 1, false); });
 

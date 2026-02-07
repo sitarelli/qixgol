@@ -304,8 +304,9 @@ canvas {
     }
     
     #leaderboard-list li {
-        font-size: 0.85em;  /* Ridotto ulteriormente su mobile */
-        padding: 3px 5px;  /* Ridotto da 6px */
+        font-size: 0.9em;  /* Leggermente più grande per leggibilità */
+        padding: 6px 8px;  /* Aumentato da 3px per più spazio */
+        margin: 4px 0; /* Aggiunto margine tra le righe */
     }
     
     #end-title {
@@ -451,16 +452,24 @@ canvas {
 
 #leaderboard-list li {
     font-size: 1.4rem; /* Font grande */
-    margin: 10px 0;
+    margin: 8px 0; /* Aumentato da 10px per più spazio */
     border-bottom: 1px solid rgba(255,255,255,0.2);
-    padding-bottom: 5px;
+    padding: 8px 10px; /* Aumentato padding per più respiro */
     display: flex;
     justify-content: space-between;
+    background: rgba(0, 243, 255, 0.05); /* Sfondo leggero per evidenziare */
+    border-radius: 4px; /* Angoli arrotondati */
+}
+
+#leaderboard-list li span:first-child {
+    color: #00ffff; /* Colore ciano per i nomi */
 }
 
 #leaderboard-list li span:last-child {
     color: var(--primary);
     font-weight: bold;
+    min-width: 80px; /* Larghezza minima per allineare i punteggi */
+    text-align: right;
 }
 
 /* Input nome giocatore */
@@ -573,11 +582,13 @@ max-height: 300px; /* O l'altezza che preferisci */
 #leaderboard-list li {
     display: flex;
     justify-content: space-between;
-    padding: 4px 5px;  /* Ridotto da 8px a 4px */
+    padding: 7px 8px;  /* Aumentato da 4px per più respiro */
+    margin: 3px 0; /* Aggiunto margine verticale */
     border-bottom: 1px dotted #333;
-    font-size: 0.9em;  /* Ridotto da 1.05em */
-    line-height: 1.2;  /* Compatta le righe */
-}
+    font-size: 0.95em;  /* Leggermente più grande */
+    line-height: 1.4;  /* Più spazio tra le righe */
+    background: rgba(0, 243, 255, 0.03); /* Sfondo sottile */
+    border-radius: 3px;
 }
 #leaderboard-list li span:last-child {
     font-family: 'Share Tech Mono', monospace;
