@@ -724,17 +724,38 @@ canvas {
     align-items: center;
     box-shadow: 0 0 10px var(--primary); /* Glow per vederlo bene */
 }
-#joystick-stick {
-    width: 30px;
-    height: 30px;
-    background: var(--danger); /* ROSSO (Danger) per vederlo meglio */
-    border-radius: 50%;
-    box-shadow: 0 0 10px var(--danger);
-    position: absolute;
-    pointer-events: none;
-    transition: transform 0.05s linear;
+
+
+/* --- style.css - DA AGGIUNGERE ALLA FINE --- */
+
+/* 1. NASCONDIAMO I VECCHI CONTROLLI */
+#mobile-controls, 
+.dpad-row, 
+.dpad-btn, 
+#joystick-container,
+#btn-turn-left,
+#btn-turn-right { 
+    display: none !important; 
 }
 
+/* 2. LAYER TOUCH INVISIBILE A TUTTO SCHERMO */
+#touch-layer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 50; /* Sta sopra al gioco (canvas), ma sotto ai menu di Game Over (che hanno z-index alti) */
+    touch-action: none; /* BLOCCA lo scroll del browser mentre giochi */
+    outline: none;
+    -webkit-tap-highlight-color: transparent; /* Rimuove il flash blu al tocco su Android */
+}
+
+/* Assicuriamoci che il body non scrolli mai su mobile */
+body {
+    overscroll-behavior: none;
+    touch-action: none;
+}
 
 /* --- FIX SCROLLBAR PERSONALIZZATA --- */
 
