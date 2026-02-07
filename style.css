@@ -409,28 +409,80 @@ canvas {
     display: none !important;
 }
 
+
+
+
+
+/* IN: style.css */
+
+/* Overlay Game Over che copre esattamente l'area di gioco */
 #game-over-screen {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 90%;  /* Quasi quanto il game wrapper */
-    max-width: 550px;  /* Stesso max-width del game wrapper */
-    height: 85%;  /* Altezza proporzionale */
-    max-height: 550px;  /* Stesso max-height del game wrapper */
-    background-color: rgba(0, 0, 0, 0.75);  /* Ridotta opacità da 0.95 a 0.75 per trasparenza */
-    border: 2px solid #00f3ff;
-    color: white;
-    padding: 20px;
-    text-align: center;
-    border-radius: 10px;
-    box-shadow: 0 0 30px rgba(0, 243, 255, 0.3);
-    z-index: 2000;
-    font-family: 'Orbitron', sans-serif;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85); /* Sfondo molto scuro */
     display: flex;
     flex-direction: column;
-    overflow: hidden;  /* Niente scroll sul container principale */
+    align-items: center;
+    justify-content: center;
+    z-index: 2000;
+    backdrop-filter: blur(5px);
+    box-sizing: border-box;
+    padding: 20px;
+    border: 2px solid var(--danger); /* Bordo rosso o del colore che preferisci */
 }
+
+/* Titoli più grandi */
+#game-over-screen h1 {
+    font-size: 3rem; /* Molto grande */
+    margin: 0 0 10px 0;
+    text-transform: uppercase;
+    text-shadow: 0 0 20px currentColor;
+}
+
+#final-score {
+    font-size: 1.8rem;
+    color: #fff;
+    margin-bottom: 20px;
+}
+
+
+#leaderboard-list li {
+    font-size: 1.4rem; /* Font grande */
+    margin: 10px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    padding-bottom: 5px;
+    display: flex;
+    justify-content: space-between;
+}
+
+#leaderboard-list li span:last-child {
+    color: var(--primary);
+    font-weight: bold;
+}
+
+/* Input nome giocatore */
+#input-section {
+    margin: 15px 0;
+    display: flex;
+    gap: 10px;
+    transform: scale(1.2); /* Ingrandisce tutta la sezione input */
+}
+
+/* Nascondere elementi */
+.hidden {
+    display: none !important;
+}
+
+
+
+
+
+
+
+
 
 #end-title {
     font-size: 1.8em;  /* Ridotto da 2em */
@@ -491,7 +543,7 @@ canvas {
     border-top: 1px solid #333;
     padding-top: 8px;  /* Ridotto da 10px */
     font-size: 0.85em;  /* Ridotto da 1em */
-    overflow: hidden;  /* No scrolling */
+    overflow: auto;  /* No scrolling */
     min-height: 0;  /* Importante per il flex */
 }
 
@@ -511,7 +563,11 @@ canvas {
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;  /* Distribuisce uniformemente gli elementi */
-    overflow: hidden;  /* No scrolling */
+    overflow: auto;  /* No scrolling */
+max-height: 300px; /* O l'altezza che preferisci */
+    overflow-y: auto;  /* Attiva lo scroll verticale solo se serve */
+    overflow-x: hidden;
+    padding-right: 5px; /* Spazio per non far coprire il testo dalla barra */
 }
 
 #leaderboard-list li {
@@ -643,4 +699,34 @@ canvas {
     position: absolute;
     pointer-events: none;
     transition: transform 0.05s linear;
+}
+
+
+/* --- FIX SCROLLBAR PERSONALIZZATA --- */
+
+/* Applichiamo lo stile a tutti gli elementi che possono scrollare dentro il game over */
+#game-over-screen *::-webkit-scrollbar {
+    width: 8px !important; /* Leggermente più larga per facilità d'uso */
+    display: block !important;
+}
+
+#game-over-screen *::-webkit-scrollbar-track {
+    background: #050510 !important; /* Colore --bg nero profondo */
+    border-radius: 10px;
+}
+
+#game-over-screen *::-webkit-scrollbar-thumb {
+    background: #222 !important; /* Grigio molto scuro/nero minimal */
+    border: 1px solid var(--primary) !important; /* Il bordino neon */
+    border-radius: 10px;
+}
+
+#game-over-screen *::-webkit-scrollbar-thumb:hover {
+    background: var(--primary) !important; /* Diventa neon al passaggio */
+}
+
+/* Fix per Firefox */
+#leaderboard-container, #leaderboard-list {
+    scrollbar-width: thin;
+    scrollbar-color: #222 #050510;
 }

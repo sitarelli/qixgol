@@ -30,7 +30,11 @@ const SPEED_BOOST_PER_KILL = 0.25;
 const MOBILE_ZOOM_LEVEL = 1; 
 const MOBILE_BREAKPOINT = 768;
 
-const CELL_UNCLAIMED = 0; const CELL_CLAIMED = 1; const CELL_STIX = 2;
+// 🏝️ TIPI DI CELLE (aggiunto CELL_ISLAND)
+const CELL_UNCLAIMED = 0; 
+const CELL_CLAIMED = 1; 
+const CELL_STIX = 2;
+const CELL_ISLAND = 3; // Nuovo: celle isola non attraversabili
 
 const SKINS = [
     { name: "CLASSIC",   primary: '#ffff00', secondary: '#ffaa00', trail: '#00ffff' },

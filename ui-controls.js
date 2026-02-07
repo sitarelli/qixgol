@@ -1,16 +1,45 @@
 //12-VBFUNZIONI
 
 // --- DB FUNZIONI ---
+
+
 async function gestisciFinePartita(vittoria) {
-    if(!gameOverScreen) { alert("GAME OVER! Punteggio: " + score); window.location.reload(); return; }
-    gameOverScreen.classList.remove('hidden'); finalScoreVal.innerText = score;
-    gameOverTime = Date.now();  // Salva il momento in cui appare il game over
-    // Se si muore, si muore (ma teoricamente non si vince mai definitivamente ora)
-    if (vittoria) { endTitle.innerText = "HAI VINTO!"; endTitle.style.color = "#00ff00"; } 
-    else { endTitle.innerText = "GAME OVER"; endTitle.style.color = "red"; }
+    if(!gameOverScreen) { 
+        alert("GAME OVER! Punteggio: " + score); 
+        window.location.reload(); 
+        return; 
+    }
+
+    // --- GESTIONE AUDIO ---
+    if (!vittoria) {
+        // 1. Fermiamo la musica di sottofondo (bgMusic è definita in dom-elements.js)
+        if (bgMusic) {
+            bgMusic.pause();
+            bgMusic.currentTime = 0; 
+        }
+
+        // 2. Facciamo partire il suono funebre (gameoverSound è in dom-elements.js)
+        if (gameoverSound) {
+            gameoverSound.currentTime = 0; // Reset per sicurezza
+            gameoverSound.play().catch(e => console.log("Riproduzione audio bloccata dal browser:", e));
+        }
+
+        endTitle.innerText = "GAME OVER"; 
+        endTitle.style.color = "red"; 
+    } else {
+        // Caso vittoria (se il gioco prevede un traguardo finale)
+        endTitle.innerText = "HAI VINTO!"; 
+        endTitle.style.color = "#00ff00"; 
+    }
+
+    // --- GESTIONE INTERFACCIA ---
+    gameOverScreen.classList.remove('hidden'); 
+    finalScoreVal.innerText = score;
+    gameOverTime = Date.now(); // Salva il momento per il delay dei tasti
+
+    // Avvia il sistema di classifica che abbiamo sistemato prima
     await checkAndShowLeaderboard();
 }
-
 async function checkAndShowLeaderboard() {
     leaderboardList.innerHTML = "<li>Caricamento dati...</li>"; inputSection.classList.add('hidden'); 
     

@@ -2,9 +2,15 @@
 
 function redrawStaticLayers() {
     if (!currentBgImage) return;
+    
+    // Disegna l'immagine di background
     imgCtx.drawImage(currentBgImage, 0, 0, imageCanvas.width, imageCanvas.height);
+    
+    // Layer griglia: inizia con l'immagine
     gridCtx.clearRect(0, 0, gridCanvas.width, gridCanvas.height);
     gridCtx.drawImage(currentBgImage, 0, 0, gridCanvas.width, gridCanvas.height);
+    
+    // Applica oscuramento nero sopra tutto
     gridCtx.save();
     gridCtx.fillStyle = 'rgba(0, 0, 0, 0.85)'; 
     gridCtx.fillRect(0, 0, gridCanvas.width, gridCanvas.height);
@@ -13,6 +19,7 @@ function redrawStaticLayers() {
     let rectSizeX = Math.ceil(scaleX);
     let rectSizeY = Math.ceil(scaleY);
 
+    // Rimuovi oscuramento SOLO per celle claimed (non per isole)
     gridCtx.globalCompositeOperation = 'destination-out';
     gridCtx.beginPath();
     for(let y=0; y<H; y++){ 
@@ -23,7 +30,70 @@ function redrawStaticLayers() {
         }
     }
     gridCtx.fill();
-    gridCtx.globalCompositeOperation = 'source-over'; 
+    gridCtx.globalCompositeOperation = 'source-over';
+    
+    // 🏝️ DISEGNA LE ISOLE CON IL PATTERN DI SFONDO PAGINA
+    // Carica il pattern corrispondente al livello
+    let patternIndex = ((level - 1) % 20) + 1;
+    let patternImg = new Image();
+    patternImg.src = `png/pattern${patternIndex}.png`;
+    
+    patternImg.onload = function() {
+        // Crea un pattern ripetuto
+        let pattern = gridCtx.createPattern(patternImg, 'repeat');
+        
+        gridCtx.save();
+        gridCtx.fillStyle = pattern;
+        
+        // Riempi tutte le celle isola con il pattern
+        gridCtx.beginPath();
+        for(let y=0; y<H; y++){ 
+            for(let x=0; x<W; x++){ 
+                if(grid[idx(x,y)] === CELL_ISLAND) {
+                    gridCtx.rect(Math.floor(x*scaleX), Math.floor(y*scaleY), rectSizeX, rectSizeY);
+                }
+            }
+        }
+        gridCtx.fill();
+        gridCtx.restore();
+        
+        // 🔲 Disegna i CONTORNI delle isole (linee chiare visibili)
+        gridCtx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+        gridCtx.lineWidth = 2;
+        for(let y=0; y<H; y++){ 
+            for(let x=0; x<W; x++){ 
+                if(grid[idx(x,y)] === CELL_ISLAND) {
+                    // Disegna bordi solo dove c'è una transizione
+                    let hasTop = y > 0 && grid[idx(x, y-1)] !== CELL_ISLAND;
+                    let hasBottom = y < H-1 && grid[idx(x, y+1)] !== CELL_ISLAND;
+                    let hasLeft = x > 0 && grid[idx(x-1, y)] !== CELL_ISLAND;
+                    let hasRight = x < W-1 && grid[idx(x+1, y)] !== CELL_ISLAND;
+                    
+                    let px = Math.floor(x*scaleX);
+                    let py = Math.floor(y*scaleY);
+                    
+                    gridCtx.beginPath();
+                    if(hasTop) {
+                        gridCtx.moveTo(px, py);
+                        gridCtx.lineTo(px + rectSizeX, py);
+                    }
+                    if(hasBottom) {
+                        gridCtx.moveTo(px, py + rectSizeY);
+                        gridCtx.lineTo(px + rectSizeX, py + rectSizeY);
+                    }
+                    if(hasLeft) {
+                        gridCtx.moveTo(px, py);
+                        gridCtx.lineTo(px, py + rectSizeY);
+                    }
+                    if(hasRight) {
+                        gridCtx.moveTo(px + rectSizeX, py);
+                        gridCtx.lineTo(px + rectSizeX, py + rectSizeY);
+                    }
+                    gridCtx.stroke();
+                }
+            }
+        }
+    };
 }
 
 
@@ -160,17 +230,25 @@ function draw() {
             entCtx.fillText('🕷️', 0, 0); entCtx.restore();
         }
 
+        // 🎾 PALLE MALVAGIE CON ICONE DIFFERENZIATE
         for (let ep of evilPlayers) {
             entCtx.save(); entCtx.translate((ep.x + 0.5) * scaleX, (ep.y + 0.5) * scaleY);
             ep.angle += 0.1; 
             entCtx.rotate(ep.angle);
-            entCtx.shadowColor = '#ff0000'; entCtx.shadowBlur = 0; 
-            entCtx.font = `${Math.min(scaleX, scaleY) * 5.5}px sans-serif`; entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
-            entCtx.fillText('⚽', 0, 0); 
+            entCtx.shadowColor = ep.type === 'soccer' ? '#00ff00' : '#ff6600'; 
+            entCtx.shadowBlur = 10; 
+            entCtx.font = `${Math.min(scaleX, scaleY) * 5.5}px sans-serif`; 
+            entCtx.textAlign = 'center'; 
+            entCtx.textBaseline = 'middle';
+            // ⚽ Calcio da vita, 🏀 basket solo punti
+            entCtx.fillText(ep.type === 'soccer' ? '⚽' : '🏀', 0, 0); 
             entCtx.restore();
         }
 
-        if (isDying) playerAnimScale = Math.max(0, playerAnimScale - 0.1); else playerAnimScale = Math.min(1, playerAnimScale + 0.05); 
+        // ⚽ PALLA PLAYER - SEMPRE VISIBILE
+        if (isDying) playerAnimScale = Math.max(0, playerAnimScale - 0.1); 
+        else playerAnimScale = Math.min(1, playerAnimScale + 0.05); 
+        
         if(playerAnimScale > 0.01) {
             // ✨ TRAIL LUMINOSO quando vai veloce
             if(!isDying && playerSpeedMult > 2.5 && (player.dir.x !== 0 || player.dir.y !== 0)) {
@@ -185,245 +263,184 @@ function draw() {
                 entCtx.restore();
             }
             
-            entCtx.save(); entCtx.translate((player.x + 0.5) * scaleX, (player.y + 0.5) * scaleY);
+            entCtx.save(); 
+            entCtx.translate((player.x + 0.5) * scaleX, (player.y + 0.5) * scaleY);
             entCtx.scale(playerAnimScale, playerAnimScale);
             if (!isDying && (player.dir.x !== 0 || player.dir.y !== 0)) playerAngle += (Math.random() - 0.5) * 1.5; 
             entCtx.rotate(playerAngle);
             
-            const blinkPhase = Math.sin((Date.now() / 500) * Math.PI); const glowBlur = 10 + 10 * Math.abs(blinkPhase); 
-            entCtx.shadowColor = currentSkin.trail; entCtx.shadowBlur = glowBlur;
+            const blinkPhase = Math.sin((Date.now() / 500) * Math.PI); 
+            const glowBlur = 10 + 10 * Math.abs(blinkPhase); 
+            entCtx.shadowColor = currentSkin.trail; 
+            entCtx.shadowBlur = glowBlur;
             
-            entCtx.font = `${Math.min(scaleX, scaleY) * 5.5}px sans-serif`; entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
-            entCtx.fillText('⚽', 0, 0); entCtx.restore(); 
-        }
-        
-        for(let i = floatingTexts.length - 1; i >= 0; i--){
-            let ft = floatingTexts[i]; entCtx.save(); let color = ft.color || 'white'; entCtx.fillStyle = color; entCtx.globalAlpha = ft.opacity;
-            let fontSize = ft.size || 24; entCtx.font = `bold ${fontSize}px 'Orbitron', sans-serif`; entCtx.textAlign = 'center'; entCtx.shadowColor = color; entCtx.shadowBlur = 0;
-            let drawX = (ft.x + 0.5) * scaleX; let drawY = (ft.y + 0.5) * scaleY - 30 - (1.0 - ft.opacity)*20; 
-            entCtx.fillText(ft.text, drawX, drawY); entCtx.globalAlpha = 1.0; entCtx.restore();
-            ft.timer -= deltaTime; if(ft.timer < 500) ft.opacity = ft.timer / 500;
-            if(ft.timer <= 0) floatingTexts.splice(i, 1);
+            const outerGrad = entCtx.createRadialGradient(0, 0, 0, 0, 0, scaleX * 2.5);
+            outerGrad.addColorStop(0, currentSkin.primary); 
+            outerGrad.addColorStop(0.5, currentSkin.secondary); 
+            outerGrad.addColorStop(1, 'rgba(0,0,0,0)');
+            entCtx.fillStyle = outerGrad; 
+            entCtx.beginPath(); 
+            entCtx.arc(0, 0, scaleX * 2.5, 0, Math.PI * 2); 
+            entCtx.fill();
+            
+            const innerGrad = entCtx.createRadialGradient(0, 0, 0, 0, 0, scaleX * 1.2);
+            innerGrad.addColorStop(0, '#ffffff'); 
+            innerGrad.addColorStop(0.6, currentSkin.primary); 
+            innerGrad.addColorStop(1, currentSkin.secondary);
+            entCtx.fillStyle = innerGrad; 
+            entCtx.beginPath(); 
+            entCtx.arc(0, 0, scaleX * 1.2, 0, Math.PI * 2); 
+            entCtx.fill();
+            
+            // ⚽ ICONA PALLONE PLAYER
+            entCtx.shadowBlur = 5;
+            entCtx.font = `${Math.min(scaleX, scaleY) * 3}px sans-serif`;
+            entCtx.textAlign = 'center';
+            entCtx.textBaseline = 'middle';
+            entCtx.fillText('⚽', 0, 0);
+            
+            entCtx.restore();
         }
     }
-    
-    // 🎆 SCREEN FLASH EFFECT (sovrapposto a tutto)
-    if(screenFlashAlpha > 0) {
-        entCtx.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+
+    // 💬 TESTI FLUTTUANTI
+    for (let i = floatingTexts.length - 1; i >= 0; i--) {
+        let ft = floatingTexts[i];
+        ft.timer -= 16; 
+        if (ft.timer <= 0) { floatingTexts.splice(i, 1); continue; }
+        ft.y -= 0.15; 
+        let fadeStart = 1000; if (ft.timer < fadeStart) ft.opacity = ft.timer / fadeStart;
+        entCtx.save();
+        entCtx.globalAlpha = ft.opacity;
+        entCtx.font = `bold ${ft.size}px Arial, sans-serif`;
+        entCtx.textAlign = 'center'; entCtx.textBaseline = 'middle';
+        entCtx.shadowColor = ft.color; entCtx.shadowBlur = 10;
+        entCtx.fillStyle = ft.color;
+        entCtx.fillText(ft.text, ft.x * scaleX, ft.y * scaleY);
+        entCtx.restore();
+    }
+
+    // 🎆 FLASH SCHERMO
+    if (screenFlashAlpha > 0) {
+        entCtx.save();
         entCtx.fillStyle = screenFlashColor;
         entCtx.globalAlpha = screenFlashAlpha;
         entCtx.fillRect(0, 0, entityCanvas.width, entityCanvas.height);
-        entCtx.globalAlpha = 1.0;
-        screenFlashAlpha -= 0.05;
-        if(screenFlashAlpha < 0) screenFlashAlpha = 0;
+        entCtx.restore();
+        screenFlashAlpha *= 0.85; 
+        if (screenFlashAlpha < 0.01) screenFlashAlpha = 0;
     }
-}
 
-// 🎆 Funzione per triggare screen flash
-function triggerScreenFlash(color, intensity = 0.7) {
-    screenFlashColor = color;
-    screenFlashAlpha = intensity;
-}
+    // 💀 GOD MODE INDICATOR
+    if (isGodMode && !isDying) {
+        entCtx.save();
+        entCtx.font = 'bold 14px Arial'; entCtx.fillStyle = '#ffff00';
+        entCtx.shadowColor = '#ff0000'; entCtx.shadowBlur = 8;
+        entCtx.fillText("GOD MODE", 10, 20);
+        entCtx.restore();
+    }
 
-// 🎆 ANIMAZIONE VITTORIA CON EFFETTI CANDY CRUSH
-function drawVictory() {
-    entCtx.save();
+    // ⚡ SPEED INDICATOR (se hai ucciso nemici)
+    if (playerSpeedMult > 2.0 && !isDying) {
+        entCtx.save();
+        let speedLevel = Math.floor((playerSpeedMult - 1.8) / SPEED_BOOST_PER_KILL);
+        entCtx.font = 'bold 16px Arial'; entCtx.fillStyle = currentSkin.trail;
+        entCtx.shadowColor = currentSkin.primary; entCtx.shadowBlur = 10;
+        entCtx.fillText(`SPEED x${speedLevel}`, entityCanvas.width - 80, 20);
+        entCtx.restore();
+    }
+
     entCtx.setTransform(1, 0, 0, 1, 0, 0);
-    entCtx.clearRect(0, 0, entityCanvas.width, entityCanvas.height);
+}
+
+// 🎆 ANIMAZIONE VITTORIA ULTRA SPETTACOLARE
+function drawVictory() {
+    if (!isVictory) return;
     
     victoryAnimTimer++;
     
-    // STEP 1: Reveal circolare dell'immagine completa (tipo Candy Crush)
-    if(victorySequenceStep === 0) {
-        revealProgress += 0.02;
-        
-        // Overlay scuro di sfondo
-        entCtx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-        entCtx.fillRect(0, 0, entityCanvas.width, entityCanvas.height);
-        
-        // ✨ GLITTER durante il reveal
-        if(Math.random() < 0.3) {
-            let gx = Math.random() * entityCanvas.width;
-            let gy = Math.random() * entityCanvas.height;
-            let glitterColors = ['#ffffff', '#ffff00', '#00ffff', '#ff00ff', '#ffd700'];
-            particles.push({
-                x: gx / scaleX,
-                y: gy / scaleY,
-                vx: (Math.random() - 0.5) * 0.3,
-                vy: (Math.random() - 0.5) * 0.3,
-                life: 1.0,
-                decay: 0.02,
-                color: glitterColors[Math.floor(Math.random() * glitterColors.length)],
-                size: 2 + Math.random() * 2
-            });
-        }
-        
-        // Disegna particelle glitter
-        for(let i = particles.length - 1; i >= 0; i--){
-            let p = particles[i]; 
-            entCtx.fillStyle = p.color; 
-            entCtx.globalAlpha = p.life;
-            let particleSize = (p.size || 1) * Math.min(scaleX, scaleY);
-            entCtx.fillRect(p.x * scaleX - particleSize/2, p.y * scaleY - particleSize/2, particleSize, particleSize);
-            entCtx.globalAlpha = 1.0; 
-            p.x += p.vx; p.y += p.vy; 
-            p.vx *= 0.97;
-            p.vy *= 0.97; 
-            p.life -= p.decay;
-            if(p.life <= 0) particles.splice(i, 1);
-        }
-        
-        // Disegna l'immagine rivelata progressivamente con effetto circolare
-        entCtx.save();
-        entCtx.beginPath();
-        entCtx.arc(
-            entityCanvas.width / 2, 
-            entityCanvas.height / 2, 
-            revealProgress * entityCanvas.width * 0.8, 
-            0, Math.PI * 2
-        );
-        entCtx.clip();
-        entCtx.globalAlpha = Math.min(1, revealProgress * 1.5);
-        if(currentBgImage) {
-            entCtx.drawImage(currentBgImage, 0, 0, entityCanvas.width, entityCanvas.height);
-        }
-        entCtx.restore();
-        
-        // Bordo dorato pulsante attorno al cerchio rivelato
-        if(revealProgress > 0.2) {
-            entCtx.save();
-            entCtx.strokeStyle = '#ffd700';
-            entCtx.lineWidth = 8;
-            entCtx.shadowColor = '#ffff00';
-            entCtx.shadowBlur = 20 + Math.sin(victoryAnimTimer * 0.1) * 10;
-            entCtx.beginPath();
-            entCtx.arc(
-                entityCanvas.width / 2, 
-                entityCanvas.height / 2, 
-                revealProgress * entityCanvas.width * 0.8, 
-                0, Math.PI * 2
-            );
-            entCtx.stroke();
-            entCtx.restore();
-        }
-        
-        // Passa allo step successivo quando il reveal è completo
-        if(revealProgress >= 1.3) {
-            victorySequenceStep = 1;
-            victoryAnimTimer = 0;
-            
-            // 🎆 ESPLOSIONE FINALE di particelle
-            for(let i = 0; i < 50; i++) {
-                let angle = (Math.PI * 2 * i) / 50;
-                let distance = 0.3 + Math.random() * 0.5;
-                particles.push({
-                    x: entityCanvas.width / (2 * scaleX),
-                    y: entityCanvas.height / (2 * scaleY),
-                    vx: Math.cos(angle) * distance,
-                    vy: Math.sin(angle) * distance,
-                    life: 1.0,
-                    decay: 0.015,
-                    color: ['#ffff00', '#ff00ff', '#00ffff', '#ffd700'][Math.floor(Math.random() * 4)],
-                    size: 2
-                });
-            }
+    entCtx.clearRect(0, 0, entityCanvas.width, entityCanvas.height);
+    
+    entCtx.save();
+    
+    // 🌈 SFONDO PULSANTE
+    let bgPulse = 0.3 + Math.sin(victoryAnimTimer * 0.05) * 0.15;
+    let bgGrad = entCtx.createRadialGradient(
+        entityCanvas.width / 2, entityCanvas.height / 2, 0,
+        entityCanvas.width / 2, entityCanvas.height / 2, entityCanvas.width * 0.7
+    );
+    bgGrad.addColorStop(0, `rgba(0, 255, 100, ${bgPulse})`);
+    bgGrad.addColorStop(0.5, `rgba(0, 150, 255, ${bgPulse * 0.5})`);
+    bgGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    entCtx.fillStyle = bgGrad;
+    entCtx.fillRect(0, 0, entityCanvas.width, entityCanvas.height);
+    
+    // 🎆 SPAWN CONTINUO PARTICELLE FIREWORKS
+    if (victoryAnimTimer % 20 === 0) {
+        let randomX = 20 + Math.random() * (W - 40);
+        let randomY = 20 + Math.random() * (H - 40);
+        spawnParticles(randomX, randomY, 'mega_fill');
+    }
+    
+    // ✨ GLITTER CONTINUO
+    if (victoryAnimTimer % 5 === 0) {
+        for(let i = 0; i < 3; i++) {
+            let rx = Math.random() * W;
+            let ry = Math.random() * H;
+            spawnParticles(rx, ry, 'fill_spark', 5);
         }
     }
     
-    // STEP 2: Testo COMPLETED + NEXT LEVEL + Fireworks continui
-    if(victorySequenceStep >= 1) {
-        // Sfondo semi-trasparente
-        entCtx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-        entCtx.fillRect(0, 0, entityCanvas.width, entityCanvas.height);
-        
-        // 🎆 FIREWORKS continui
-        if(Math.random() < 0.2) {
-            let fx = Math.random() * entityCanvas.width;
-            let fy = Math.random() * entityCanvas.height * 0.5;
-            let colors = ['#ffff00', '#ff00ff', '#00ffff', '#ff0000', '#00ff00', '#ffd700', '#ff6600'];
-            let particleCount = 25 + Math.floor(Math.random() * 15);
-            
-            for(let i = 0; i < particleCount; i++) {
-                let angle = (Math.PI * 2 * i) / particleCount;
-                let speed = 0.4 + Math.random() * 0.4;
-                particles.push({
-                    x: fx / scaleX,
-                    y: fy / scaleY,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    life: 1.0,
-                    decay: 0.018,
-                    color: colors[Math.floor(Math.random() * colors.length)],
-                    size: 1.5 + Math.random()
-                });
-            }
-        }
-        
-        // ✨ GLITTER che cade dall'alto
-        if(Math.random() < 0.4) {
-            particles.push({
-                x: Math.random() * (entityCanvas.width / scaleX),
-                y: 0,
-                vx: (Math.random() - 0.5) * 0.2,
-                vy: 0.3 + Math.random() * 0.3,
-                life: 1.0,
-                decay: 0.01,
-                color: ['#ffffff', '#ffff00', '#ffd700'][Math.floor(Math.random() * 3)],
-                size: 2 + Math.random() * 2
-            });
-        }
-        
-        // Disegna tutte le particelle (fireworks + glitter)
-        for(let i = particles.length - 1; i >= 0; i--){
-            let p = particles[i]; 
-            entCtx.fillStyle = p.color; 
-            entCtx.globalAlpha = p.life;
-            let particleSize = (p.size || 1) * Math.min(scaleX, scaleY);
-            entCtx.fillRect(p.x * scaleX - particleSize/2, p.y * scaleY - particleSize/2, particleSize, particleSize);
-            entCtx.globalAlpha = 1.0; 
-            p.x += p.vx; p.y += p.vy; 
-            p.vx *= 0.97;
-            p.vy *= 0.97; 
-            p.life -= p.decay;
-            if(p.life <= 0) particles.splice(i, 1);
-        }
-        
-        // 📝 TESTO "COMPLETED" 
-        let pulse = 1 + Math.sin(victoryAnimTimer * 0.1) * 0.12;
-        let completedSize = Math.floor(Math.min(entityCanvas.width, entityCanvas.height) / 8 * pulse);
-        
-        entCtx.font = `900 ${completedSize}px Arial Black, Arial, sans-serif`;
-        entCtx.textAlign = 'center'; 
-        entCtx.textBaseline = 'middle';
-        entCtx.shadowColor = '#00ff00';
-        entCtx.shadowBlur = 40 + Math.sin(victoryAnimTimer * 0.15) * 20;
-        entCtx.fillStyle = '#00ff00';
-        entCtx.fillText("COMPLETED", entityCanvas.width / 2, entityCanvas.height * 0.35);
-        
-        // 📝 TESTO "NEXT LEVEL"
-        entCtx.shadowColor = '#ffd700';
-        entCtx.shadowBlur = 30 + Math.sin(victoryAnimTimer * 0.12) * 15;
-        let nextLevelSize = Math.floor(completedSize * 0.55);
-        entCtx.font = `bold ${nextLevelSize}px Arial, sans-serif`;
-        entCtx.fillStyle = '#ffd700';
-        entCtx.fillText("", entityCanvas.width / 2, entityCanvas.height * 0.50);
-        
-        // 💫 Stelle rotanti
-        let starRotation = victoryAnimTimer * 0.05;
-        let starX = entityCanvas.width / 2 - nextLevelSize * 3.2;
-        let starY = entityCanvas.height * 0.50;
-        drawRotatingStar(starX, starY, 15, starRotation, '#ffd700');
-        
-        starX = entityCanvas.width / 2 + nextLevelSize * 3.2;
-        drawRotatingStar(starX, starY, 15, -starRotation, '#ffd700');
-        
-        // 💬 Sottotitolo
-        entCtx.shadowBlur = 10;
-        entCtx.font = `bold ${completedSize * 0.25}px Arial, sans-serif`;
-        entCtx.fillStyle = '#ffffff';
-        entCtx.fillText("Premi freccia per continuare", entityCanvas.width / 2, entityCanvas.height * 0.72);
+    // Disegna tutte le particelle (fireworks + glitter)
+    for(let i = particles.length - 1; i >= 0; i--){
+        let p = particles[i]; 
+        entCtx.fillStyle = p.color; 
+        entCtx.globalAlpha = p.life;
+        let particleSize = (p.size || 1) * Math.min(scaleX, scaleY);
+        entCtx.fillRect(p.x * scaleX - particleSize/2, p.y * scaleY - particleSize/2, particleSize, particleSize);
+        entCtx.globalAlpha = 1.0; 
+        p.x += p.vx; p.y += p.vy; 
+        p.vx *= 0.97;
+        p.vy *= 0.97; 
+        p.life -= p.decay;
+        if(p.life <= 0) particles.splice(i, 1);
     }
     
+    // 📝 TESTO "COMPLETED" 
+    let pulse = 1 + Math.sin(victoryAnimTimer * 0.1) * 0.12;
+    let completedSize = Math.floor(Math.min(entityCanvas.width, entityCanvas.height) / 8 * pulse);
+    
+    entCtx.font = `900 ${completedSize}px Arial Black, Arial, sans-serif`;
+    entCtx.textAlign = 'center'; 
+    entCtx.textBaseline = 'middle';
+    entCtx.shadowColor = '#00ff00';
+    entCtx.shadowBlur = 40 + Math.sin(victoryAnimTimer * 0.15) * 20;
+    entCtx.fillStyle = '#00ff00';
+    entCtx.fillText("COMPLETED", entityCanvas.width / 2, entityCanvas.height * 0.35);
+    
+    // 📝 TESTO "NEXT LEVEL"
+    entCtx.shadowColor = '#ffd700';
+    entCtx.shadowBlur = 30 + Math.sin(victoryAnimTimer * 0.12) * 15;
+    let nextLevelSize = Math.floor(completedSize * 0.55);
+    entCtx.font = `bold ${nextLevelSize}px Arial, sans-serif`;
+    entCtx.fillStyle = '#ffd700';
+    entCtx.fillText("", entityCanvas.width / 2, entityCanvas.height * 0.50);
+    
+    // 💫 Stelle rotanti
+    let starRotation = victoryAnimTimer * 0.05;
+    let starX = entityCanvas.width / 2 - nextLevelSize * 3.2;
+    let starY = entityCanvas.height * 0.50;
+    drawRotatingStar(starX, starY, 15, starRotation, '#ffd700');
+    
+    starX = entityCanvas.width / 2 + nextLevelSize * 3.2;
+    drawRotatingStar(starX, starY, 15, -starRotation, '#ffd700');
+    
+    // 💬 Sottotitolo
+    entCtx.shadowBlur = 10;
+    entCtx.font = `bold ${completedSize * 0.25}px Arial, sans-serif`;
+    entCtx.fillStyle = '#ffffff';
+    entCtx.fillText("Premi freccia per continuare", entityCanvas.width / 2, entityCanvas.height * 0.72);
+
     entCtx.restore();
 }
 
