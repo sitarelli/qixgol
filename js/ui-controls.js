@@ -118,7 +118,7 @@ window.riavviaGioco = function() {
     
     // Imposta direzione iniziale dopo un breve delay
     setTimeout(() => {
-        player.dir = {x: 0, y: -1};
+        player.dir = {x: 0, y: 0};
     }, 200);
 }
 
@@ -135,7 +135,7 @@ function startGame() {
     initGame(1, true); 
     
     setTimeout(() => {
-        player.dir = {x: 0, y: -1}; 
+        player.dir = {x: 0, y: 0}; 
         if (bgMusic) { bgMusic.play().catch(e => console.log("Audio ancora bloccato")); }
     }, 200);
 
