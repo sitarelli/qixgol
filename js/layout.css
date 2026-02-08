@@ -1,0 +1,93 @@
+/* ============================================
+   LAYOUT.CSS
+   Gestisce la struttura principale della pagina:
+   - Contenitore principale (#main-layout)
+   - Header con logo e info base
+   - Struttura generale del gioco
+   ============================================ */
+
+/* --- CONTENITORE PRINCIPALE --- */
+/* Wrapper che contiene header, gioco e footer
+   Centrato con larghezza massima per desktop */
+#main-layout {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+    max-width: 1200px;  /* Limite su schermi molto grandi */
+}
+
+/* --- HEADER ROW --- */
+/* Riga superiore che contiene: Level | Logo | Lives 
+   Layout flex con elementi distribuiti uniformemente */
+#header-row {
+    display: flex;
+    align-items: flex-end;      /* Allinea al fondo per estetica */
+    justify-content: center;
+    width: 100%;
+    margin-bottom: 10px;
+    gap: 15px;                  /* Spazio tra gli elementi */
+}
+
+/* --- LOGO CENTRALE --- */
+/* Container del logo QIXGOL nell'header */
+#logo-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#game-logo {
+    max-height: 100px;
+    width: auto;
+    max-width: 50vw;            /* Su mobile non occupa più di metà schermo */
+    display: block;
+    image-rendering: -webkit-optimize-contrast; /* Rende i pixel più nitidi */
+    margin-bottom: -10px;       /* Compensa lo spazio extra sotto il logo */
+}
+
+/* --- GAME ROW (obsoleto?) --- */
+/* Questa sezione sembra non essere più utilizzata nell'HTML attuale
+   ma la manteniamo per compatibilità */
+#game-row {
+    flex-wrap: wrap; 
+    width: 100%;
+    justify-content: center;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* --- COLONNE LATERALI (obsoleto?) --- */
+/* Erano usate per contenere i controlli ai lati del gioco
+   Probabilmente sostituito da #bottom-hud */
+.side-col {
+    width: 100px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;             /* Non si riduce se manca spazio */
+}
+
+
+/* --- FOCUS MODE --- */
+/* Quando il body ha questa classe, il gioco domina lo schermo */
+
+body.focus-active #header-row {
+    display: none !important; /* Nasconde logo, livello e vite in alto */
+}
+
+body.focus-active #game-wrapper {
+    
+    
+    /* Rimuove limiti massimi precedenti */
+    max-width: none !important;
+    max-height: none !important;
+    
+    margin: auto; /* Centra tutto */
+}
+
+/* Opzionale: se hai un footer o scritte sotto, nascondi anche quelle */
+body.focus-active .footer-info {
+    display: none;
+}
