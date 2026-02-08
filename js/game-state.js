@@ -23,6 +23,11 @@ let player = { x: Math.floor(W/2), y: H-1, drawing: false, dir: {x:0,y:0} };
 let qixList = []; 
 let evilPlayers = []; 
 
+// ðŸ•¸ï¸ VARIABILI RAGNATELE
+let cobwebList = [];              // Lista di ragnatele attive
+let nextCobwebTime = 0;           // Timestamp per la prossima ragnatela
+let isPlayerOnCobweb = false;     // Se il player è sulla ragnatela 
+
 // Variabile per tracciare quando appare il game over
 let gameOverTime = 0; 
 

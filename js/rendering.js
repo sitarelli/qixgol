@@ -221,6 +221,58 @@ function draw() {
             if(p.life <= 0) particles.splice(i, 1);
         }
         
+        // ðŸ•¸ï¸ DISEGNA RAGNATELE
+        if (cobwebList.length > 0) {
+            for (let cobweb of cobwebList) {
+                // Calcola l'opacità in base al tempo rimanente
+                const timeLeft = cobweb.expiresAt - Date.now();
+                const fadeThreshold = 10000; // Inizia a svanire negli ultimi 10 secondi
+                let opacity = 0.55;
+                
+                if (timeLeft < fadeThreshold) {
+                    opacity = 0.35 * (timeLeft / fadeThreshold);
+                }
+                
+                // Disegna le celle della ragnatela
+                entCtx.save();
+                entCtx.fillStyle = `rgba(255, 255, 255, ${opacity})`;
+                entCtx.beginPath();
+                for (let cell of cobweb.cells) {
+                    entCtx.rect(
+                        Math.floor(cell.x * scaleX), 
+                        Math.floor(cell.y * scaleY), 
+                        rectSizeX, 
+                        rectSizeY
+                    );
+                }
+                entCtx.fill();
+                
+                // Disegna pattern a rete sopra
+                entCtx.strokeStyle = `rgba(255, 255, 255, ${opacity * 0.8})`;
+                entCtx.lineWidth = 1;
+                entCtx.beginPath();
+                
+                // Linee orizzontali
+                for (let cell of cobweb.cells) {
+                    if (cell.y % 3 === 0) {
+                        entCtx.moveTo(cell.x * scaleX, cell.y * scaleY);
+                        entCtx.lineTo((cell.x + 1) * scaleX, cell.y * scaleY);
+                    }
+                }
+                
+                // Linee verticali
+                for (let cell of cobweb.cells) {
+                    if (cell.x % 3 === 0) {
+                        entCtx.moveTo(cell.x * scaleX, cell.y * scaleY);
+                        entCtx.lineTo(cell.x * scaleX, (cell.y + 1) * scaleY);
+                    }
+                }
+                
+                entCtx.stroke();
+                entCtx.restore();
+            }
+        }
+        
         for (let q of qixList) {
             entCtx.save(); entCtx.translate((q.x + 0.5) * scaleX, (q.y + 0.5) * scaleY);
             let angle = Math.atan2(q.vy, q.vx); entCtx.rotate(angle + Math.PI / 2);
@@ -347,6 +399,20 @@ function draw() {
         entCtx.font = 'bold 16px Arial'; entCtx.fillStyle = currentSkin.trail;
         entCtx.shadowColor = currentSkin.primary; entCtx.shadowBlur = 10;
         entCtx.fillText(`SPEED x${speedLevel}`, entityCanvas.width - 80, 20);
+        entCtx.restore();
+    }
+    
+    // ðŸ•¸ï¸ COBWEB INDICATOR (quando sei rallentato)
+    if (isPlayerOnCobweb && !isDying) {
+        entCtx.save();
+        entCtx.font = 'bold 16px Arial'; 
+        entCtx.fillStyle = '#ffffff';
+        entCtx.shadowColor = '#888888'; 
+        entCtx.shadowBlur = 10;
+        // Pulsa per attirare l'attenzione
+        const pulse = 0.8 + Math.sin(Date.now() / 200) * 0.2;
+        entCtx.globalAlpha = pulse;
+        entCtx.fillText("ðŸ•¸ï¸ SLOW!", entityCanvas.width / 2 - 40, 20);
         entCtx.restore();
     }
 
@@ -529,6 +595,12 @@ function spawnParticles(x, y, type, intensity = 1) {
         pColor = '#888888';
     }
     
+    // ðŸ•¸ï¸ COBWEB - Particelle bianche/grigie per indicare rallentamento
+    else if (type === 'cobweb') {
+        count = 2;
+        pColor = '#cccccc';
+    }
+    
     for(let i=0; i<count; i++){
         let angle = (Math.PI * 2 * i) / count; // Distribuzione circolare uniforme
         let speed = 0.3 + Math.random() * 0.4;
@@ -544,6 +616,20 @@ function spawnParticles(x, y, type, intensity = 1) {
                 decay: 0.01, // Dura più a lungo
                 color: Math.random() > 0.5 ? '#888888' : '#555555',
                 size: 2 + Math.random() * 2 // Più grande
+            };
+            particles.push(p);
+        }
+        // ðŸ•¸ï¸ COBWEB: particelle piccole che cadono lentamente (effetto ragnatela)
+        else if(type === 'cobweb') {
+            let p = {
+                x: x + (Math.random() - 0.5) * 2, 
+                y: y + (Math.random() - 0.5) * 2,
+                vx: (Math.random() - 0.5) * 0.05,
+                vy: 0.1 + Math.random() * 0.1, // Cade lentamente
+                life: 1.0, 
+                decay: 0.02,
+                color: Math.random() > 0.5 ? '#ffffff' : '#cccccc',
+                size: 0.8 // Piccole
             };
             particles.push(p);
         }

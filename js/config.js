@@ -37,14 +37,22 @@ const CELL_STIX = 2;
 const CELL_ISLAND = 3; // Nuovo: celle isola non attraversabili
 
 const SKINS = [
-    { name: "CLASSIC",   primary: '#ffff00', secondary: '#ffaa00', trail: '#00ffff' },
-    { name: "MATRIX",    primary: '#00ff00', secondary: '#003300', trail: '#008800' },
+    { name: "STRETCHING",   primary: '#ffff00', secondary: '#ffaa00', trail: '#00ffff' },
+    { name: "WARMUP",    primary: '#00ff00', secondary: '#003300', trail: '#008800' },
     { name: "INFERNO",   primary: '#ff3300', secondary: '#ffaa00', trail: '#ff0000' },
-    { name: "ICE",       primary: '#ffffff', secondary: '#aaccff', trail: '#0088ff' },
-    { name: "CYBERPUNK", primary: '#ff00ff', secondary: '#00ffff', trail: '#ffff00' },
-    { name: "GOLD",      primary: '#ffd700', secondary: '#ffcc00', trail: '#ffffff' }
+    { name: "SE SCOMISSIA",       primary: '#ffffff', secondary: '#aaccff', trail: '#0088ff' },
+    { name: "DAI CHE NDEMO", primary: '#ff00ff', secondary: '#00ffff', trail: '#ffff00' },
+    { name: "INFERNO",      primary: '#ffd700', secondary: '#ffcc00', trail: '#ffffff' }
 ];
 let currentSkin = SKINS[0];
 
 const MISSION_PREFIX = ["OPERATION", "PROTOCOL", "PROJECT", "INITIATIVE", "CODE"];
 const MISSION_SUFFIX = ["OMEGA", "ZERO", "GHOST", "NEON", "STORM", "PHANTOM", "ECHO"];
+
+// ðŸ•¸ï¸ CONFIGURAZIONE RAGNATELE (dal livello 3+)
+const COBWEB_ENABLED_FROM_LEVEL = 3;    // Dal livello 3 in poi
+const COBWEB_SPAWN_INTERVAL = 20000;    // 1 minuto (20000ms) tra una ragnatela e l'altra
+const COBWEB_DURATION = 20000;          // Durata ragnatela: 1 minuto
+const COBWEB_MAX_COVERAGE = 0.12;       // 15% massimo dell'area di gioco
+const COBWEB_SPEED_PENALTY = 0.3;       // Rallentamento del 30% sulla ragnatela
+const COBWEB_CELL_TYPE = 2;             // Tipo di cella per la ragnatela

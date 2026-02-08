@@ -56,6 +56,15 @@ if (bgMusic) {
     flashList = []; particles = []; floatingTexts = [];
     currentPercent = 0; playerAngle = 0; playerAnimScale = 0; shakeIntensity = 0;
     
+    // ðŸ•¸ï¸ RESET RAGNATELE
+    cobwebList = [];
+    isPlayerOnCobweb = false;
+    if (level >= COBWEB_ENABLED_FROM_LEVEL) {
+        nextCobwebTime = Date.now() + COBWEB_SPAWN_INTERVAL;
+    } else {
+        nextCobwebTime = 0; // Disabilita per livelli bassi
+    }
+    
     isPlaying = true; isDying = false; isVictory = false;
     if(nextLevelContainer) nextLevelContainer.style.display = 'none'; 
     gameWrapper.style.cursor = 'none';
@@ -208,6 +217,115 @@ function generateRectangularIslands() {
                 if (inBounds(px, py)) {
                     grid[idx(px, py)] = CELL_ISLAND;
                 }
+            }
+        }
+    }
+}
+
+// ðŸ•¸ï¸ CREA UNA RAGNATELA DA UN RAGNO CASUALE
+function createCobweb() {
+    if (qixList.length === 0) return;
+    
+    // Scegli un ragno casuale
+    const spiderIndex = Math.floor(Math.random() * qixList.length);
+    const spider = qixList[spiderIndex];
+    
+    // Calcola il numero massimo di celle (15% dell'area totale)
+    const maxCells = Math.floor((W * H) * COBWEB_MAX_COVERAGE);
+    
+    // Crea la ragnatela con forma organica partendo dal ragno
+    const cobwebCells = [];
+    const startX = Math.floor(spider.x);
+    const startY = Math.floor(spider.y);
+    
+    // BFS per creare una forma organica
+    const queue = [{x: startX, y: startY, dist: 0}];
+    const visited = new Set();
+    visited.add(`${startX},${startY}`);
+    
+    // Raggio massimo della ragnatela (basato sul numero di celle)
+    const maxRadius = Math.sqrt(maxCells / Math.PI) * 1.5;
+    
+    while (queue.length > 0 && cobwebCells.length < maxCells) {
+        const current = queue.shift();
+        
+        // Aggiungi la cella alla ragnatela solo se è UNCLAIMED
+        if (inBounds(current.x, current.y) && 
+            grid[idx(current.x, current.y)] === CELL_UNCLAIMED) {
+            cobwebCells.push({x: current.x, y: current.y});
+        }
+        
+        // Espandi ai vicini con probabilità decrescente in base alla distanza
+        const directions = [
+            {dx: 1, dy: 0}, {dx: -1, dy: 0},
+            {dx: 0, dy: 1}, {dx: 0, dy: -1},
+            {dx: 1, dy: 1}, {dx: -1, dy: -1},
+            {dx: 1, dy: -1}, {dx: -1, dy: 1}
+        ];
+        
+        for (let dir of directions) {
+            const nx = current.x + dir.dx;
+            const ny = current.y + dir.dy;
+            const key = `${nx},${ny}`;
+            
+            if (visited.has(key)) continue;
+            visited.add(key);
+            
+            const dist = Math.hypot(nx - startX, ny - startY);
+            if (dist > maxRadius) continue;
+            
+            // Probabilità di espansione (più bassa lontano dal centro)
+            const expandProb = 1 - (dist / maxRadius) * 0.7;
+            if (Math.random() < expandProb && inBounds(nx, ny)) {
+                queue.push({x: nx, y: ny, dist: dist});
+            }
+        }
+    }
+    
+    if (cobwebCells.length > 0) {
+        const cobweb = {
+            spiderIndex: spiderIndex,
+            cells: cobwebCells,
+            createdAt: Date.now(),
+            expiresAt: Date.now() + COBWEB_DURATION
+        };
+        
+        cobwebList.push(cobweb);
+        
+        // Effetto visivo e sonoro
+        spawnFloatingText("COBWEB!", spider.x, spider.y, 20, '#ffffff', 2000);
+        addShake(5);
+        
+        console.log(`Ragnatela creata: ${cobwebCells.length} celle dal ragno #${spiderIndex}`);
+    }
+}
+
+// ðŸ•¸ï¸ RIMUOVE RAGNATELE SCADUTE
+function updateCobwebs() {
+    const now = Date.now();
+    
+    // Rimuovi ragnatele scadute
+    cobwebList = cobwebList.filter(cobweb => {
+        if (now >= cobweb.expiresAt) {
+            console.log(`Ragnatela scaduta dopo ${COBWEB_DURATION/1000} secondi`);
+            return false;
+        }
+        return true;
+    });
+}
+
+// ðŸ•¸ï¸ CONTROLLA SE IL PLAYER È SU UNA RAGNATELA
+function checkPlayerOnCobweb() {
+    isPlayerOnCobweb = false;
+    
+    const px = Math.floor(player.x);
+    const py = Math.floor(player.y);
+    
+    for (let cobweb of cobwebList) {
+        for (let cell of cobweb.cells) {
+            if (cell.x === px && cell.y === py) {
+                isPlayerOnCobweb = true;
+                return;
             }
         }
     }
@@ -493,6 +611,13 @@ function resetAfterDeath(){
         
         playerSpeedMult = 1.8; 
         moveAccumulator = 0;
+        
+        // ðŸ•¸ï¸ PULISCE LE RAGNATELE QUANDO MUORI
+        cobwebList = [];
+        isPlayerOnCobweb = false;
+        if (level >= COBWEB_ENABLED_FROM_LEVEL) {
+            nextCobwebTime = Date.now() + COBWEB_SPAWN_INTERVAL;
+        }
 
         // Gestione RAGNI sopravvissuti
         qixList.forEach((q, i) => {
@@ -655,7 +780,24 @@ function victoryLoop() {
 
 function tickPlayer(){
     if(player.dir.x===0 && player.dir.y===0) return;
-    spawnParticles(player.x, player.y, 'player');
+    
+    // ðŸ•¸ï¸ Controlla se il player è su una ragnatela
+    const wasOnCobweb = isPlayerOnCobweb;
+    checkPlayerOnCobweb();
+    
+    // Feedback visivo quando si entra sulla ragnatela
+    if (isPlayerOnCobweb && !wasOnCobweb) {
+        spawnFloatingText("SLOW!", player.x, player.y - 5, 16, '#ffffff', 1500);
+    }
+    
+    // Particelle diverse se sulla ragnatela
+    if (isPlayerOnCobweb) {
+        // Particelle bianche per indicare la ragnatela
+        spawnParticles(player.x, player.y, 'cobweb');
+    } else {
+        spawnParticles(player.x, player.y, 'player');
+    }
+    
     const nx = player.x + player.dir.x * PLAYER_SPEED_CELLS; const ny = player.y + player.dir.y * PLAYER_SPEED_CELLS;
     if(!inBounds(nx,ny)) return;
     
@@ -714,8 +856,26 @@ function gameLoop(now){
     if (!isDying && !isVictory) { 
         moveQix(); 
         
-   
-moveAccumulator += (1 * playerSpeedMult); 
+        // ðŸ•¸ï¸ GESTIONE RAGNATELE
+        if (level >= COBWEB_ENABLED_FROM_LEVEL) {
+            // Aggiorna ragnatele (rimuove quelle scadute)
+            updateCobwebs();
+            
+            // Crea nuova ragnatela se è il momento
+            const now = Date.now();
+            if (nextCobwebTime > 0 && now >= nextCobwebTime) {
+                createCobweb();
+                nextCobwebTime = now + COBWEB_SPAWN_INTERVAL;
+            }
+        }
+        
+        // ðŸ•¸ï¸ APPLICA RALLENTAMENTO SE SULLA RAGNATELA
+        let currentSpeedMult = playerSpeedMult;
+        if (isPlayerOnCobweb) {
+            currentSpeedMult *= COBWEB_SPEED_PENALTY;
+        }
+        
+        moveAccumulator += (1 * currentSpeedMult); 
         
         let loops = 0;
         while (moveAccumulator >= 1 && loops < 8) { // MAX 8 step fisici per frame per evitare freeze
