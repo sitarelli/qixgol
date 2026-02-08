@@ -6,6 +6,7 @@ const nextLevelContainer = document.getElementById('next-level-container');
 const nextLevelBtn = document.getElementById('next-level-btn');
 const gameWrapper = document.getElementById('game-wrapper');
 const cameraLayer = document.getElementById('camera-layer');
+const focusBtn = document.getElementById('focus-btn');
 
 //03-LEADER
 // LEADERBOARD DOM

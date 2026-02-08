@@ -350,3 +350,23 @@ if(startBtn) {
         startGame();
     });
 }
+
+if(focusBtn) {
+    focusBtn.addEventListener('click', () => {
+        // 1. Attiva/Disattiva la classe CSS sul body
+        document.body.classList.toggle('focus-active');
+        
+        // 2. Forza il browser in Fullscreen (opzionale, ma consigliato per Focus Mode)
+        if (document.body.classList.contains('focus-active')) {
+             const elem = document.documentElement;
+             if (elem.requestFullscreen) elem.requestFullscreen().catch(e => {});
+        } else {
+             // Se esci dalla focus mode, esci anche dal fullscreen? (A tua scelta)
+             if (document.exitFullscreen) document.exitFullscreen().catch(e => {});
+        }
+
+        // 3. IMPORTANTE: Forza il ricalcolo delle dimensioni del Canvas
+        // Diamo un piccolo ritardo per permettere al CSS di applicarsi
+        setTimeout(resizeCanvases, 50);
+    });
+}

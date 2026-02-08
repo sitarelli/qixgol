@@ -99,18 +99,23 @@ function redrawStaticLayers() {
 
 
 function resizeCanvases() {
-const winW = window.innerWidth;
+    const winW = window.innerWidth;
     const winH = window.innerHeight;
 
-    // NUOVO CALCOLO MOBILE
-    const isMobile = winW < MOBILE_BREAKPOINT;
-    const availW = isMobile ? winW - 10 : winW * 0.65;
-    // SU MOBILE: Sottrai 220px all'altezza per lasciare spazio fisico alle frecce
-    const availH = isMobile ? (winH - 240) : winH * 0.75;
+    // Controllo se la Focus Mode è attiva (guardando la classe nel body)
+    const isFocusMode = document.body.classList.contains('focus-active');
 
+    const isMobile = winW < MOBILE_BREAKPOINT;
+    
+    const availW = isMobile ? winW - 10 : winW * (isFocusMode ? 0.92 : 0.65);
+    
+    // QUI LA MODIFICA CHIAVE:
+    // Se focus mode è attivo, usa 95% altezza, altrimenti 75%
+    const heightFactor = isFocusMode ? 0.92 : 0.75; 
+    const availH = isMobile ? (winH - 240) : winH * heightFactor;
     let size = Math.min(availW, availH);
     if (size < 200) size = 200; // Sicurezza minima
-    if (size > 650) size = 650;
+    if (size > 900) size = 900;
 
     gameWrapper.style.width = Math.floor(size) + "px";
     gameWrapper.style.height = Math.floor(size) + "px";
