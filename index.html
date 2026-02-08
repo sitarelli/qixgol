@@ -48,15 +48,18 @@
 </head>
 <body>
 
-    <div id="loading-screen">
-        <div class="loader-content">
-            <h1 class="loader-title">QIXGOL</h1>
-            <div id="loading-bar-container"><div id="loading-bar"></div></div>
-            <div id="loading-text">CARICAMENTO...</div>
-            <button id="start-game-btn" style="display:none;" onclick="enterFullscreenAndStart()">GIOCA ORA</button>
+<div id="loading-screen">
+    <canvas id="loader-canvas"></canvas> 
+    
+    <div class="loader-content">
+        <div class="loader-title">QIXGOL</div>
+        <div id="loading-bar-container">
+            <div id="loading-bar"></div>
         </div>
+        <div id="loading-text">CARICAMENTO...</div>
+        <button id="start-game-btn" class="hidden">GIOCA ORA</button>
     </div>
-
+</div>
     <div id="main-layout">
         <div id="header-row">
             <div class="hud-group">
